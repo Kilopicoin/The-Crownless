@@ -1,0 +1,413 @@
+/* =========================================================================
+   PROFILE — DRAGONFIRE (GoT vibes) • koyu kırmızı alev teması
+   Yalnızca .profile-page altında etkili olur.
+   ========================================================================= */
+
+/* -------------------- 1) TEMA DEĞERLERİ -------------------- */
+.profile-page{
+  /* Dragonfire paleti */
+  --df-obsidian-1: #0b0a0a;   /* en koyu obsidyen */
+  --df-obsidian-2: #121013;   /* gece taşı         */
+  --df-obsidian-3: #1a171b;   /* duman siyahı      */
+
+  --df-burgundy-1: #2b0e12;   /* koyu şarap        */
+  --df-burgundy-2: #3a1116;   /* derin kırmızı     */
+  --df-burgundy-3: #4a1419;   /* kızıl gölge       */
+
+  --df-crimson-1: #7a0e11;    /* kızıl alev        */
+  --df-crimson-2: #a01718;    /* kızıl kor         */
+  --df-crimson-3: #d1271f;    /* parlak alev       */
+
+  --df-ember-1:   #f24a1e;    /* kor turuncu       */
+  --df-ember-2:   #ff6a2a;    /* sıcak alev        */
+
+  --df-gold-raw:  #c9a24b;    /* yaşlı altın       */
+  --df-gold-dim:  rgba(201,162,75,.8);
+
+  --df-ink:   #efe9e1;        /* ana metin         */
+  --df-muted: #bfb6aa;        /* ikincil metin     */
+
+  --df-line-1: rgba(201,162,75,.24);
+  --df-line-2: rgba(201,162,75,.36);
+
+  --r: 14px;     /* radius */
+  --g: 18px;     /* gap    */
+
+  color: var(--df-ink);
+  position: relative;
+  isolation: isolate;
+  max-width: 1100px;
+  margin: 2rem auto;
+  padding-inline: clamp(12px, 2vw, 24px);
+}
+
+/* -------------------- 2) ARKA PLAN & ATMOSFER -------------------- */
+.profile-page{
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(122,14,17,.08), transparent 55%),
+    linear-gradient(180deg, var(--df-obsidian-1), var(--df-obsidian-2) 60%, #080808 100%);
+}
+.profile-page::before{
+  /* alttan kor parıltısı */
+  content:"";
+  position:absolute; inset:auto -10% -12% -10%; height: 48%;
+  background:
+    radial-gradient(80% 100% at 50% 100%,
+      rgba(210,39,31,.16) 0%,
+      rgba(122,14,17,.10) 40%,
+      transparent 72%);
+  filter: blur(2px);
+  pointer-events:none; z-index:-1;
+}
+.profile-page::after{
+  /* üstten duman tabakası */
+  content:""; position:absolute; inset:0;
+  background: radial-gradient(60% 60% at 50% -10%, rgba(0,0,0,.35), transparent 60%);
+  pointer-events:none; z-index:-1;
+}
+
+/* Ember parçacıkları (çok hafif) */
+@keyframes emberDrift{
+  0%{ transform: translateY(0) translateX(0) scale(.9); opacity:.0 }
+  25%{ opacity:.25 }
+  100%{ transform: translateY(-160px) translateX(30px) scale(1.1); opacity:0 }
+}
+.profile-page .ember{
+  pointer-events:none; position:absolute; inset:auto; bottom:10px; left:10%;
+  width:3px; height:3px; background: var(--df-ember-2);
+  box-shadow:
+    0 0 10px rgba(242,74,30,.7),
+    0 0 18px rgba(201,162,75,.3);
+  border-radius:50%;
+  animation: emberDrift 6s linear infinite;
+  opacity:.12;
+  filter: saturate(1.2);
+}
+.profile-page .ember:nth-child(2){ left:25%; animation-delay: .8s; }
+.profile-page .ember:nth-child(3){ left:40%; animation-delay: 1.6s; }
+.profile-page .ember:nth-child(4){ left:60%; animation-delay: 2.4s; }
+.profile-page .ember:nth-child(5){ left:78%; animation-delay: 3.1s; }
+
+/* -------------------- 3) BAŞLIK & ADRES -------------------- */
+.profile-page .sec-title{
+  text-align:center;
+  letter-spacing:.02em;
+  margin-bottom:.75rem;
+  color: #fff3e0;
+  text-shadow: 0 0 20px rgba(209,71,50,.35);
+  position:relative;
+  font-weight: 900;
+}
+.profile-page .sec-title::before,
+.profile-page .sec-title::after{
+  /* ejder kanadı gibi yan çizgiler */
+  content:"";
+  position:absolute; top:50%; width:120px; height:2px;
+  background:
+    linear-gradient(90deg, transparent, var(--df-crimson-3), var(--df-gold-raw), transparent);
+  transform: translateY(-50%);
+  filter: drop-shadow(0 0 10px rgba(209,71,50,.35));
+}
+.profile-page .sec-title::before{ left: -6px; transform-origin:left center; }
+.profile-page .sec-title::after { right:-6px; transform-origin:right center; }
+.profile-page > code{
+  display:block; text-align:center; user-select: all;
+  color: var(--df-muted);
+  background: linear-gradient(180deg, rgba(0,0,0,.4), rgba(0,0,0,.3));
+  border:1px solid rgba(255,255,255,.06);
+  padding:.4rem .6rem; border-radius:.5rem;
+}
+
+/* -------------------- 4) KARTLAR GRID -------------------- */
+.profile-cards{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px,1fr));
+  gap: var(--g);
+  margin: 1rem 0 1.25rem;
+}
+@media (min-width: 1060px){
+  .profile-cards{ grid-template-columns: repeat(5, 1fr); }
+}
+
+.profile-cards .card{
+  position:relative;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height: 180px;
+  padding: 16px;
+  border-radius: var(--r);
+  color: var(--df-ink);
+  background:
+    radial-gradient(140% 120% at 50% 0%,
+      rgba(122,14,17,.12), transparent 50%),
+    linear-gradient(180deg, var(--df-burgundy-2), var(--df-obsidian-2));
+  border: 1px solid var(--df-line-1);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.04),
+    0 14px 30px rgba(0,0,0,.5),
+    0 0 36px rgba(209,39,31,.16);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.profile-cards .card:hover{
+  transform: translateY(-2px);
+  border-color: var(--df-line-2);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.06),
+    0 18px 36px rgba(0,0,0,.6),
+    0 0 42px rgba(209,39,31,.22);
+}
+
+.profile-cards .card h4{
+  margin:0 0 .4rem;
+  font: 800 .98rem/1.1 "Cinzel", ui-serif, serif;
+  letter-spacing:.03em;
+  color: var(--df-gold-raw);
+  text-shadow: 0 0 8px rgba(201,162,75,.28);
+}
+
+/* -------------------- 5) ROZET & NUMARALAR -------------------- */
+.profile-page .lvl-badge{
+  display:inline-block;
+  padding:.28rem .6rem;
+  margin:.15rem 0 .35rem;
+  font-weight:900; font-size:1.6rem; letter-spacing:.03em;
+  color:#fff;
+  background:
+    linear-gradient(180deg, #a51617, #740f10 60%, #4a0a0b),
+    radial-gradient(100% 120% at 50% 0%, rgba(255,255,255,.08), transparent 60%);
+  border:1px solid rgba(209,39,31,.5);
+  border-radius:.6rem;
+  text-shadow: 0 1px 0 rgba(0,0,0,.4), 0 0 8px rgba(209,39,31,.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 8px 18px rgba(209,39,31,.28);
+}
+
+/* -------------------- 6) GAUGE (TitanGauge) -------------------- */
+.profile-page .titan-gauge{
+  width:100%;
+}
+.profile-page .gauge-label{
+  font: 900 1.18rem/1 Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  fill: #fff4ea;
+  text-shadow: 0 0 10px rgba(201,162,75,.35), 0 0 18px rgba(209,39,31,.35);
+  letter-spacing:.3px;
+}
+.profile-page .gauge-sub{
+  font: 700 .8rem/1 Inter, system-ui;
+  fill: var(--df-muted);
+}
+
+/* Recharts track & genel svg nüansları */
+.profile-page .titan-gauge .recharts-radial-bar-background path{
+  fill: rgba(255,255,255,.06)!important;
+}
+.profile-page svg text{ paint-order: stroke fill; stroke: rgba(0,0,0,.25); stroke-width: .6px }
+
+/* -------------------- 7) DONUT (AegisDonut) -------------------- */
+.profile-page .aegis-donut{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  width:100%;
+}
+.profile-page .donut-total{
+  font: 900 1.08rem/1 Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  fill: #fff2df;
+  text-shadow: 0 0 8px rgba(201,162,75,.28), 0 0 12px rgba(209,39,31,.25);
+}
+.profile-page .donut-sub{
+  font: 700 .76rem/1 Inter, system-ui;
+  fill: var(--df-muted);
+}
+
+/* Donut legend */
+.profile-page .donut-legend{
+  display:flex; gap:1rem; margin-top:.5rem; font-size:.8rem; opacity:.95;
+}
+.profile-page .donut-legend .lg{
+  display:inline-flex; align-items:center; gap:.45rem; color:#f4ece3; font-weight:800;
+  letter-spacing:.02em;
+}
+.profile-page .donut-legend .lg i{
+  width:12px; height:12px; border-radius:3px; display:inline-block;
+  box-shadow: inset 0 0 10px rgba(0,0,0,.25), 0 0 10px rgba(201,162,75,.18);
+}
+.profile-page .donut-legend .lg-lop i{
+  background: linear-gradient(90deg, var(--df-crimson-3), var(--df-gold-raw));
+}
+.profile-page .donut-legend .lg-one i{
+  background: linear-gradient(90deg, #2C3440, #AFC3D6);
+}
+
+/* Tooltip */
+.profile-page .chart-tooltip{
+  background:
+    radial-gradient(100% 100% at 0% 0%, rgba(209,39,31,.12), transparent 60%),
+    linear-gradient(180deg, rgba(0,0,0,.8), rgba(0,0,0,.75));
+  border:1px solid var(--df-line-2);
+  box-shadow: 0 10px 22px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.05);
+  color:#ffeedd; padding:.55rem .65rem; border-radius:.6rem; min-width: 140px;
+}
+.profile-page .chart-tooltip .tt-name{
+  font-weight: 900; letter-spacing:.3px; margin-bottom:.1rem; color:#fff0d4;
+}
+.profile-page .chart-tooltip .tt-value{
+  font-weight: 800; color:#fff7ea;
+}
+
+/* -------------------- 8) REFERANS PANOSU -------------------- */
+.profile-page .ref-grid{
+  display:grid; grid-template-columns: repeat(auto-fit, minmax(230px,1fr));
+  gap: var(--g); margin-top: 1.2rem;
+}
+.profile-page .ref-grid .card{ min-height: 120px; }
+
+/* -------------------- 9) REFERANS LİNKİ + QR -------------------- */
+.profile-page .ref-link-wrap{
+  margin: 1.2rem auto 0; max-width: 560px;
+  display:grid; grid-template-columns: 1fr auto; gap: 10px 12px; align-items:center;
+  padding: .95rem 1rem; border-radius: var(--r);
+  background:
+    radial-gradient(160% 120% at 100% 0%, rgba(209,39,31,.12), transparent 50%),
+    linear-gradient(180deg, var(--df-burgundy-3), var(--df-obsidian-2));
+  border:1px solid var(--df-line-1);
+  box-shadow: 0 14px 32px rgba(0,0,0,.55);
+}
+.profile-page .ref-link-wrap code{
+  background: rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.07);
+  padding:.5rem .6rem; border-radius:.5rem; font-size:.86rem; color:#f3ede6;
+  max-height: 84px; overflow:auto;
+}
+.profile-page .ref-link-wrap svg{
+  width: 88px; height: 88px; padding:6px; border-radius:10px;
+  background: linear-gradient(180deg, #171416, #100f11);
+  border: 1px solid var(--df-line-1);
+  box-shadow: inset 0 0 12px rgba(201,162,75,.08);
+}
+.profile-page button{
+  justify-self: start;
+  padding:.58rem .95rem; border-radius:.65rem; font-weight:900; letter-spacing:.03em;
+  background:
+    radial-gradient(120% 180% at 0% 0%, rgba(255,255,255,.08), transparent 50%),
+    linear-gradient(180deg, var(--df-crimson-2), #7a1012);
+  color:#fff; border:1px solid rgba(209,39,31,.55);
+  box-shadow: 0 10px 22px rgba(209,39,31,.32);
+  cursor:pointer;
+  transition: transform .16s ease, box-shadow .2s ease, filter .16s ease;
+}
+.profile-page button:hover{
+  transform: translateY(-1px);
+  filter: saturate(1.05);
+  box-shadow: 0 14px 28px rgba(209,39,31,.4);
+}
+.profile-page button:focus-visible{
+  outline:2px solid rgba(201,162,75,.6); outline-offset:2px;
+}
+.profile-page .copy-msg{ color: var(--df-gold-raw); font-size:.86rem; }
+
+@media (max-width: 560px){
+  .profile-page .ref-link-wrap{ grid-template-columns: 1fr; max-width: 92vw; }
+  .profile-page .ref-link-wrap button,
+  .profile-page .ref-link-wrap svg{ justify-self:center }
+}
+
+/* -------------------- 10) TABLO (Alev & Obsidyen) -------------------- */
+.profile-page .table-wrap{
+  position:relative; margin-top:.9rem; border-radius: var(--r); overflow:hidden;
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(209,39,31,.10), transparent 50%),
+    linear-gradient(180deg, var(--df-obsidian-2), #0e0d0e);
+  border:1px solid var(--df-line-1);
+  box-shadow: 0 18px 40px rgba(0,0,0,.6), inset 0 1px rgba(255,255,255,.03);
+  max-height: 460px; overflow:auto;
+}
+.profile-page .table-wrap::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:
+    repeating-linear-gradient(0deg,  rgba(201,162,75,.05) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(90deg, rgba(201,162,75,.04) 0 1px, transparent 1px 44px);
+  mix-blend-mode: soft-light;
+}
+
+.profile-page .level-table{
+  width:100%; border-collapse:separate; border-spacing:0;
+  background: linear-gradient(180deg, #1b1416, #120e10 65%, #0d0b0c);
+  color: var(--df-ink);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+/* Sticky başlık */
+.profile-page .level-table thead th{
+  position: sticky; top:0; z-index:2;
+  background:
+    linear-gradient(180deg, rgba(209,39,31,.28), rgba(209,39,31,.06)),
+    linear-gradient(180deg, #2a1516, #1c1213);
+  backdrop-filter: blur(6px);
+  color:#fff7ee; text-transform:uppercase; letter-spacing:.055em;
+  font-weight:900; font-size:12.8px; padding:12px 14px;
+  border-bottom:1px solid var(--df-line-2);
+  box-shadow: 0 2px 0 rgba(0,0,0,.35), inset 0 -2px 0 rgba(201,162,75,.10);
+}
+.profile-page .level-table thead th + th{ border-left:1px solid rgba(201,162,75,.14); }
+/* Satırlar */
+.profile-page .level-table tbody td{
+  padding:10px 14px; font-size:13.5px; color: var(--df-muted);
+  border-bottom:1px dashed rgba(201,162,75,.18);
+  background: transparent;
+  transition: background .18s ease, color .18s ease;
+}
+.profile-page .level-table tbody td + td{ border-left:1px solid rgba(201,162,75,.12); }
+/* Zebra + Hover */
+.profile-page .level-table tbody tr:nth-child(even) td{
+  background: linear-gradient(90deg, rgba(122,16,18,.08), transparent 60%);
+}
+.profile-page .level-table tbody tr:hover td{
+  color:#fff2e5;
+  background: radial-gradient(90% 70% at 12% 50%, rgba(209,39,31,.16), transparent 70%);
+}
+.profile-page .level-table tbody tr:hover td:first-child{
+  position: relative;
+}
+.profile-page .level-table tbody tr:hover td:first-child::before{
+  content:""; position:absolute; left:0; top:-1px; bottom:-1px; width:3px;
+  background: linear-gradient(180deg, rgba(209,39,31,0), rgba(209,39,31,.95), rgba(209,39,31,0));
+  box-shadow: 0 0 10px rgba(209,39,31,.55), 0 0 18px rgba(201,162,75,.35);
+}
+/* Köşe yarıçapları */
+.profile-page .level-table thead tr:first-child th:first-child{ border-top-left-radius: 10px; }
+.profile-page .level-table thead tr:first-child th:last-child { border-top-right-radius: 10px; }
+.profile-page .level-table tbody tr:last-child td:first-child{ border-bottom-left-radius: 10px; }
+.profile-page .level-table tbody tr:last-child td:last-child { border-bottom-right-radius: 10px; }
+/* Hizalamalar */
+.profile-page .level-table th:nth-child(1),
+.profile-page .level-table td:nth-child(1){
+  text-align:left; font-weight: 800; color:#ffeede;
+}
+.profile-page .level-table th:nth-child(2),
+.profile-page .level-table td:nth-child(2){ text-align:center; }
+.profile-page .level-table th:last-child,
+.profile-page .level-table td:last-child{ text-align:right; }
+/* Responsive tablo boşlukları */
+@media (max-width: 600px){
+  .profile-page .level-table thead th{ font-size:11.7px; padding:10px 10px; }
+  .profile-page .level-table tbody td{ font-size:12.6px; padding:8px 10px; }
+}
+
+/* -------------------- 11) GİRİŞ ANİMASYONLARI -------------------- */
+@keyframes riseIn{
+  from{ opacity:0; transform: translateY(10px) }
+  to{   opacity:1; transform: none }
+}
+.profile-cards .card{ animation: riseIn .55s ease both; }
+.profile-cards .card:nth-child(1){ animation-delay:.04s }
+.profile-cards .card:nth-child(2){ animation-delay:.08s }
+.profile-cards .card:nth-child(3){ animation-delay:.12s }
+.profile-cards .card:nth-child(4){ animation-delay:.16s }
+.profile-cards .card:nth-child(5){ animation-delay:.20s }
+
+/* -------------------- 12) KÜÇÜK DOKUNUŞLAR -------------------- */
+@media (max-width: 860px){ .profile-page .lvl-badge{ font-size:1.4rem } }
+@media (max-width: 600px){
+  .profile-page{ padding-inline: 12px }
+  .profile-cards{ grid-template-columns: repeat(auto-fit, minmax(190px,1fr)) }
+}
+
+/* -------------------- 13) OPSİYONEL EMBERS (5 tane ekleyin) ------------- */
+/* Kullanım: JSX içinde .profile-page > div.ember ×5 ekleyebilirsin (opsiyonel) */
