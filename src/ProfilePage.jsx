@@ -10,8 +10,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Sector,
-  Tooltip,
 } from "recharts";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -158,55 +156,22 @@ function TitanGauge({ pct = 0, nextLabel = "", needUsd = 0 }) {
    AEGIS DONUT — Contributions (kalın halka, aktif dilim büyütme, dış etiket,
    yüzdeler, glow, legend)
    ========================================================================== */
-function AegisDonut({ lop = 0, one = 0 }) {
-  const [activeIndex, setActiveIndex] = useState(-1); // koşulsuz hook
-
-  const total = (lop || 0) + (one || 0);
+function AegisDonut({ usdt = 0, usdc = 0 }) {
+  const total = (usdt || 0) + (usdc || 0);
   if (total <= 0) return <p style={{ marginTop: "1rem" }}>—</p>;
 
   const data = [
-    { name: "LOP", value: lop, key: "lop" },
-    { name: "ONE", value: one, key: "one" },
+    { name: "USDT", value: usdt, key: "usdt" },
+    { name: "USDC", value: usdc, key: "usdc" },
   ];
-  const percent = (v) => (total ? Math.round((v / total) * 100) : 0);
 
-  const renderActive = (props) => {
-    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
-    return (
-      <g>
-        <Sector
-          cx={cx}
-          cy={cy}
-          innerRadius={innerRadius}
-          outerRadius={outerRadius + 8}
-          startAngle={startAngle}
-          endAngle={endAngle}
-          fill={fill}
-          filter="url(#donutGlow)"
-        />
-        <Sector
-          cx={cx}
-          cy={cy}
-          innerRadius={outerRadius + 8}
-          outerRadius={outerRadius + 10}
-          startAngle={startAngle}
-          endAngle={endAngle}
-          fill="rgba(255,255,255,.1)"
-        />
-      </g>
-    );
-  };
-
-  // Dış etiket renderer (isim + % + değer)
-  const outerLabel = ({
-    name, value, cx, cy, midAngle, outerRadius,
-  }) => {
+  // Keep outer labels but remove the percent part
+  const outerLabel = ({ name, value, cx, cy, midAngle, outerRadius }) => {
     if (!value) return null;
     const RAD = Math.PI / 180;
     const r = outerRadius + 18;
     const x = cx + r * Math.cos(-midAngle * RAD);
     const y = cy + r * Math.sin(-midAngle * RAD);
-    const pct = percent(value);
     return (
       <g>
         <text
@@ -216,7 +181,7 @@ function AegisDonut({ lop = 0, one = 0 }) {
           dominantBaseline="middle"
           style={{ fill: "#fff", fontWeight: 800, fontSize: 12 }}
         >
-          {name} • {pct}% • {Math.round(value).toLocaleString()}
+          {name} • {Math.round(value).toLocaleString()}
         </text>
       </g>
     );
@@ -227,27 +192,28 @@ function AegisDonut({ lop = 0, one = 0 }) {
       <ResponsiveContainer width={180} height={180}>
         <PieChart>
           <defs>
-            {/* Arka plan (tam halka, track) */}
             <linearGradient id="ringTrack" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"  stopColor="rgba(255,255,255,.06)"/>
-              <stop offset="100%" stopColor="rgba(255,255,255,.03)"/>
+              <stop offset="0%" stopColor="rgba(255,255,255,.06)" />
+              <stop offset="100%" stopColor="rgba(255,255,255,.03)" />
             </linearGradient>
-            {/* Dilimler */}
-            <linearGradient id="sliceLOP" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%"  stopColor={CROWNLESS.flame}/>
-              <stop offset="100%" stopColor={CROWNLESS.gold}/>
+            <linearGradient id="sliceUSDT" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor={CROWNLESS.flame} />
+              <stop offset="100%" stopColor={CROWNLESS.gold} />
             </linearGradient>
-            <linearGradient id="sliceONE" x1="1" y1="0" x2="0" y2="1">
-              <stop offset="0%"  stopColor={CROWNLESS.steel}/>
-              <stop offset="100%" stopColor={CROWNLESS.ice}/>
+            <linearGradient id="sliceUSDC" x1="1" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={CROWNLESS.steel} />
+              <stop offset="100%" stopColor={CROWNLESS.ice} />
             </linearGradient>
             <filter id="donutGlow" x="-40%" y="-40%" width="180%" height="180%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/>
-              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b" />
+              <feMerge>
+                <feMergeNode in="b" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
             </filter>
           </defs>
 
-          {/* Track ring */}
+          {/* track */}
           <Pie
             data={[{ value: 1 }]}
             dataKey="value"
@@ -258,7 +224,7 @@ function AegisDonut({ lop = 0, one = 0 }) {
             isAnimationActive={false}
           />
 
-          {/* Asıl donut */}
+          {/* donut (no hover handlers, no active overlay) */}
           <Pie
             data={data}
             dataKey="value"
@@ -267,63 +233,45 @@ function AegisDonut({ lop = 0, one = 0 }) {
             outerRadius={78}
             stroke="rgba(0,0,0,.25)"
             strokeWidth={1}
-            paddingAngle={data.filter(d=>d.value>0).length===2 ? 2 : 0}
-            onMouseEnter={(_, i) => setActiveIndex(i)}
-            onMouseLeave={() => setActiveIndex(-1)}
-            label={outerLabel}
+            paddingAngle={data.filter(d => d.value > 0).length === 2 ? 2 : 0}
             labelLine={false}
-            isAnimationActive
+            isAnimationActive={false}   // optional: remove initial animation too
           >
             {data.map((d) => (
-              <Cell key={d.key} fill={d.key === "lop" ? "url(#sliceLOP)" : "url(#sliceONE)"} />
-            ))}
-            {activeIndex > -1 && (
-              <Pie
-                data={[data[activeIndex]]}
-                dataKey="value"
-                innerRadius={54}
-                outerRadius={78}
-                activeIndex={0}
-                activeShape={renderActive}
-                isAnimationActive={false}
+              <Cell
+                key={d.key}
+                fill={d.key === "usdt" ? "url(#sliceUSDT)" : "url(#sliceUSDC)"}
+                filter="url(#donutGlow)"
               />
-            )}
+            ))}
           </Pie>
 
-          {/* merkez toplam */}
+          {/* center */}
           <text x="50%" y="46%" textAnchor="middle" className="donut-total">
             {Math.round(total).toLocaleString()}
           </text>
           <text x="50%" y="61%" textAnchor="middle" className="donut-sub">
-            USD-Eq
+            USD
           </text>
 
-          <Tooltip
-            content={({active, payload})=>{
-              if (!active || !payload || !payload.length) return null;
-              const p = payload[0];
-              return (
-                <div className="chart-tooltip">
-                  <div className="tt-name">{p.name}</div>
-                  <div className="tt-value">
-                    {Math.round(p.value).toLocaleString()} • {percent(p.value)}%
-                  </div>
-                </div>
-              );
-            }}
-            wrapperStyle={{ outline: "none" }}
-          />
+          {/* Tooltip removed to eliminate hover interaction */}
         </PieChart>
       </ResponsiveContainer>
 
       {/* Legend */}
       <div className="donut-legend" aria-hidden="true">
-        <span className="lg lg-lop"><i /> LOP</span>
-        <span className="lg lg-one"><i /> ONE</span>
+        <span className="lg lg-usdt">
+          <i /> USDT
+        </span>
+        <span className="lg lg-usdc">
+          <i /> USDC
+        </span>
       </div>
     </div>
   );
 }
+
+
 
 /* ------------------------------------------------------------------
    PROFILE PAGE
@@ -355,8 +303,9 @@ const [refRows, setRefRows] = useState([]);              // referral earnings ro
   const [rows,       setRows]       = useState([]);
   const [copyMsg,    setCopyMsg]    = useState("");
   const [justLeveled,setJustLeveled]= useState(false);
-  const [lopUsd,     setLopUsd]     = useState(0);
-  const [oneUsd,     setOneUsd]     = useState(0);
+  const [usdtUsd, setUsdtUsd] = useState(0);
+const [usdcUsd, setUsdcUsd] = useState(0);
+
 
   /* signer address (ethers v6 güvenli yöntem) */
   useEffect(() => {
@@ -436,8 +385,9 @@ const [refRows, setRefRows] = useState([]);              // referral earnings ro
 
      if (!dead) {
        setRows(out);                               // table rows
-       setLopUsd(Number(formatUnits(sumUSDT, 18))); // reuse LOP slot for USDT
-       setOneUsd(Number(formatUnits(sumUSDC, 18))); // reuse ONE slot for USDC
+       setUsdtUsd(Number(formatUnits(sumUSDT, 18)));
+setUsdcUsd(Number(formatUnits(sumUSDC, 18)));
+
        setCrwTotal(Math.round(Number(formatUnits(sumCRLS, 18)))); // total CRLS
      }
    } catch {}
@@ -625,8 +575,13 @@ try {
           width:12px; height:12px; border-radius:3px; display:inline-block;
           box-shadow: 0 0 10px rgba(0,0,0,.25) inset;
         }
-        .profile-page .donut-legend .lg-lop i{ background: linear-gradient(90deg, ${CROWNLESS.flame}, ${CROWNLESS.gold}); }
-        .profile-page .donut-legend .lg-one i{ background: linear-gradient(90deg, ${CROWNLESS.steel}, ${CROWNLESS.ice}); }
+        .profile-page .donut-legend .lg-usdt i{ 
+  background: linear-gradient(90deg, #FF4800, #C9A24B); 
+}
+.profile-page .donut-legend .lg-usdc i{ 
+  background: linear-gradient(90deg, #2C3440, #AFC3D6); 
+}
+
       `}</style>
 
       {/* HEADER */}
@@ -639,7 +594,7 @@ try {
       <div className="profile-cards">
         {/* Level */}
         <div className="card" style={{position:"relative"}}>
-          <h4>Current Level</h4>
+          <h4>Current Tier</h4>
           <p
             className="lvl-badge"
             style={justLeveled ? { animation: "pulseGlow 1.6s ease-in-out 3" } : {}}
@@ -661,20 +616,22 @@ try {
 
         {/* Donut (Contributions) */}
         <div className="card" style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
-          <h4>Contributions<br/>(USD-Eq)</h4>
-          <AegisDonut lop={lopUsd} one={oneUsd} />
-          <p style={{fontSize:".8rem", marginTop:".25rem"}}>
-            LOP {lopUsd.toLocaleString()} / ONE {oneUsd.toLocaleString()}
-          </p>
+          <h4>Total Contribution</h4>
+<AegisDonut usdt={usdtUsd} usdc={usdcUsd} />
+<p style={{fontSize:".8rem", marginTop:".25rem"}}>
+  USDT {usdtUsd.toLocaleString()} / USDC {usdcUsd.toLocaleString()}
+</p>
+
         </div>
 
         {/* Referral earnings (toplam) */}
         <div className="card">
           <h4>Referral Earnings</h4>
-          <p>
-            {Number(formatUnits(earnedLop)).toLocaleString()} LOP<br />
-            {Number(formatUnits(earnedOne)).toLocaleString()} ONE
-          </p>
+<p>
+  {Number(formatUnits(earnedLop)).toLocaleString()} USDT<br />
+  {Number(formatUnits(earnedOne)).toLocaleString()} USDC
+</p>
+
         </div>
 
         {/* Total referees (L1+L2) */}
@@ -688,7 +645,6 @@ try {
 
 
     {/* ====== History (tabs) ====== */}
-<h3 style={{ marginTop: "2rem" }}>History</h3>
 <div className="chip-list" role="tablist" aria-label="History tabs" style={{ marginBottom: ".75rem" }}>
   <button
     className={`chip ${activeTab === "purchases" ? "active" : ""}`}
@@ -718,11 +674,11 @@ try {
           <tr>
             <th>Date</th>
             <th>Token</th>
-            <th>USD</th>
+            <th>Amount</th>
             <th>CRLS</th>
-            <th>Referrer</th>
-            <th>Ref of Ref</th>
-            <th>Price ($/CRLS)</th>
+            <th>Referrer L1</th>
+            <th>Referrer L2</th>
+            <th>Price $</th>
           </tr>
         </thead>
         <tbody>
@@ -734,8 +690,8 @@ try {
               <td>{Math.round(r.crls).toLocaleString()}</td>
               <td title={r.ref1}><code>{shortAddr(r.ref1)}</code></td>
               <td title={r.ref2}><code>{shortAddr(r.ref2)}</code></td>
-              <td title={`${r.price.toLocaleString(undefined,{maximumFractionDigits:6})} CRLS/$`}>
-                {r.priceInv.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 })}
+              <td title={`${r.price.toLocaleString(undefined,{maximumFractionDigits:4})} CRLS/$`}>
+                {r.priceInv.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
               </td>
             </tr>
           ))}

@@ -1163,25 +1163,48 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
 .pay-col { background: var(--clr-surface); border: 1px solid var(--clr-border); border-radius: 10px; padding: 12px; }
 .pay-hdr { margin: 0 0 8px; font-size: 0.95rem; color: var(--clr-accent-gold); letter-spacing: .3px; }
 
-.chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;   /* center horizontally */
+  align-items: center;        /* optional: vertical centering */
+  width: 100%;                /* optional: ensure full row width */
+}
+
+/* Centering already ok via .chip-list { justify-content:center } */
+
+/* Default = INACTIVE (dark) */
 .chip {
   border: 1px solid var(--clr-border);
-  background: #111;
+  background: #0f0f0f;
   color: var(--clr-text-main);
   padding: 6px 10px;
   border-radius: 999px;
   font-size: .9rem;
   cursor: pointer;
-  transition: transform .1s ease, border-color .15s ease, background .15s ease;
+  transition: transform .1s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
 }
 .chip:hover { transform: translateY(-1px); border-color: var(--clr-accent-gold); }
-.chip.active { background: linear-gradient(90deg, #1d1d1d, #2a1b0b); border-color: var(--clr-accent-ember); }
+
+/* ACTIVE = REDDISH */
+.chip.active,
+.chip[aria-selected="true"] {
+  background: linear-gradient(180deg, var(--clr-accent-flame) 0%, #ff3a00 100%);
+  color: #fff;
+  border-color: rgba(255,72,0,.45);
+  box-shadow: 0 10px 20px rgba(0,0,0,.45), 0 0 12px rgba(255,72,0,.28);
+}
+.chip.active:hover { filter: brightness(1.05); }
+
+/* Disabled stays muted */
 .chip.disabled,
 .chip:disabled {
   opacity: .45; cursor: not-allowed;
   background: #0f0f0f !important;
   border-style: dashed;
 }
+
 
 .pay-hint { margin: 6px 0 10px; font-size: .9rem; color: var(--clr-text-sub); }
 /* ==== Compact Payment Selector ==== */
@@ -1318,3 +1341,7 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
 .ref-line code.copyable:active {
   transform: scale(0.99);
 }
+
+
+
+
