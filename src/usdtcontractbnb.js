@@ -2,7 +2,7 @@
 import { BrowserProvider, Contract, JsonRpcProvider } from 'ethers';
 import contractABI from './contract/usdtbnb.json';
 
-export const usdtbnbcontractAddress = '0x6e9d6b2eee897874a680337c7E2d3C2B69C92831';
+export const usdtbnbcontractAddress = '0x94895123784c24b92C851711149d2D4Ae294d796';
 const RPC = 'http://127.0.0.1:8545';
 
 export const getusdtbnbContract = () => {

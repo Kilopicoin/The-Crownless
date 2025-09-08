@@ -50,107 +50,89 @@ const clampPct = (v) => Math.max(0, Math.min(100, Math.round(v || 0)));
    ========================================================================== */
 function TitanGauge({ pct = 0, nextLabel = "", needUsd = 0 }) {
   const v = clampPct(pct);
-  const data = [{ track: 100, progress: v, hotline: v }]; // 'hotline' eklendi
+  const data = [{ track: 100, progress: v, hotline: v }];
 
-  // 11 tick (0..100 arası her 10%)
+  const W = 220, H = 160;
+  const CX = W / 2; // 110
+  const CY = H;     // 160
+
   const ticks = Array.from({ length: 11 }, (_, i) => 180 - i * 18);
+  const tickLenMajor = H * 0.18; // ~28.8px
+  const tickLenMinor = H * 0.14; // ~22.4px
 
   return (
     <div className="titan-gauge" role="img" aria-label={`Next tier progress ${v}%`}>
-      <ResponsiveContainer width={220} height={160}>
-        <RadialBarChart
-          data={data}
-          cx="50%"
-          cy="100%"
-          startAngle={180}
-          endAngle={0}
-          innerRadius="60%"
-          outerRadius="100%"
-          barSize={28}
-        >
-          <defs>
-            {/* Progress Gradient */}
-            <linearGradient id="gaugeGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor={CROWNLESS.flame} />
-              <stop offset="100%" stopColor={CROWNLESS.gold} />
-            </linearGradient>
-            
-            {/* Hotline Gradient */}
-            <linearGradient id="hotlineGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor={CROWNLESS.flame} stopOpacity={0.8}/>
-              <stop offset="100%" stopColor="#FFD700" /> {/* Bright Gold */}
-            </linearGradient>
+      <RadialBarChart
+        data={data}
+        width={W}
+        height={H}
+        cx={CX}
+        cy={CY}
+        startAngle={180}
+        endAngle={0}
+        innerRadius="60%"
+        outerRadius="100%"
+        barSize={28}
+      >
+        <defs>
+          <linearGradient id="gaugeGradient" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={CROWNLESS.flame} />
+            <stop offset="100%" stopColor={CROWNLESS.gold} />
+          </linearGradient>
+          <linearGradient id="hotlineGradient" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={CROWNLESS.flame} stopOpacity={0.8}/>
+            <stop offset="100%" stopColor="#FFD700" />
+          </linearGradient>
+          <pattern id="trackPattern" patternUnits="userSpaceOnUse" width="6" height="6">
+            <path d="M-1,1 l2,-2 M0,6 l6,-6 M5,7 l2,-2" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+          </pattern>
+          <filter id="professionalGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+            <feColorMatrix in="blur" mode="matrix"
+              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
+            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+          </filter>
+        </defs>
 
-            {/* Track Pattern (Brushed Metal) */}
-            <pattern id="trackPattern" patternUnits="userSpaceOnUse" width="6" height="6">
-              <path d="M-1,1 l2,-2 M0,6 l6,-6 M5,7 l2,-2" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-            </pattern>
+        <RadialBar dataKey="track" cornerRadius={16} fill="url(#trackPattern)"
+          background={{ fill: 'rgba(255,255,255,0.02)' }} isAnimationActive={false}/>
+        <RadialBar dataKey="progress" cornerRadius={16} fill="url(#gaugeGradient)"
+          filter="url(#professionalGlow)" isAnimationActive animationDuration={950}/>
+        <RadialBar dataKey="hotline" cornerRadius={16} barSize={1}
+          fill="url(#hotlineGradient)" isAnimationActive animationDuration={950}/>
 
-            {/* Professional Glow Filter */}
-            <filter id="professionalGlow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
-              <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
-              <feComposite in="SourceGraphic" in2="goo" operator="atop" />
-            </filter>
-          </defs>
+        <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
 
-          {/* Arka Plan Track (Desenli) */}
-          <RadialBar dataKey="track" cornerRadius={16} fill="url(#trackPattern)" background={{ fill: 'rgba(255,255,255,0.02)' }} isAnimationActive={false}/>
-          
-          {/* Ana İlerleme Çubuğu */}
-          <RadialBar
-            dataKey="progress"
-            cornerRadius={16}
-            fill="url(#gaugeGradient)"
-            filter="url(#professionalGlow)"
-            isAnimationActive
-            animationDuration={950}
-          />
+        {/* ticks */}
+        <g transform={`translate(${CX} ${CY})`}>
+          {ticks.map((ang, i) => (
+            <line
+              key={i}
+              x1="0" y1="0"
+              x2="0" y2={-(i % 5 === 0 ? tickLenMajor : tickLenMinor)}
+              transform={`rotate(${ang})`}
+              stroke="rgba(255,255,255,.25)"
+              strokeWidth={i % 5 === 0 ? 2 : 1}
+              strokeLinecap="round"
+            />
+          ))}
+        </g>
 
-          {/* İlerleme ucundaki parlak çizgi (Hotline) */}
-          <RadialBar
-            dataKey="hotline"
-            cornerRadius={16}
-            barSize={1} // Çok ince
-            fill="url(#hotlineGradient)"
-            isAnimationActive
-            animationDuration={950}
-          />
-          
-          <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-
-          {/* Tick çizgileri (yüzdelik) */}
-          <g>
-            {ticks.map((ang, i) => (
-              <line
-                key={i}
-                x1="50%" y1="100%" x2="50%" y2={i % 5 === 0 ? "82%" : "86%"}
-                transform={`rotate(${ang} 50% 100%)`}
-                stroke="rgba(255,255,255,.25)"
-                strokeWidth={i % 5 === 0 ? 2 : 1}
-                strokeLinecap="round"
-              />
-            ))}
-          </g>
-
-          {/* Eksen Etiketleri (0 ve 100) */}
-          <text x="8%" y="95%" textAnchor="middle" className="gauge-endpoint-label">0</text>
-          <text x="92%" y="95%" textAnchor="middle" className="gauge-endpoint-label">100</text>
-          
-          {/* Merkez Yüzde */}
-          <text x="50%" y="62%" textAnchor="middle" className="gauge-label">{v}%</text>
-          
-          {/* Alt Bilgi */}
-          {nextLabel && (
-            <text x="50%" y="76%" textAnchor="middle" className="gauge-sub">
-              {needUsd > 0 ? `${needUsd.toLocaleString()} USD to ${nextLabel}` : nextLabel}
-            </text>
-          )}
-        </RadialBarChart>
-      </ResponsiveContainer>
+        {/* labels */}
+        <text x="8%"  y="95%" textAnchor="middle" className="gauge-endpoint-label">0</text>
+        <text x="92%" y="95%" textAnchor="middle" className="gauge-endpoint-label">100</text>
+        <text x="50%" y="62%" textAnchor="middle" className="gauge-label">{v}%</text>
+        {nextLabel && (
+          <text x="50%" y="76%" textAnchor="middle" className="gauge-sub">
+            {needUsd > 0 ? `${needUsd.toLocaleString()} USD to ${nextLabel}` : nextLabel}
+          </text>
+        )}
+      </RadialBarChart>
     </div>
   );
 }
+
+
 
 /* ==========================================================================
    AEGIS DONUT — Contributions (kalın halka, aktif dilim büyütme, dış etiket,
@@ -165,111 +147,77 @@ function AegisDonut({ usdt = 0, usdc = 0 }) {
     { name: "USDC", value: usdc, key: "usdc" },
   ];
 
-  // Keep outer labels but remove the percent part
-  const outerLabel = ({ name, value, cx, cy, midAngle, outerRadius }) => {
-    if (!value) return null;
-    const RAD = Math.PI / 180;
-    const r = outerRadius + 18;
-    const x = cx + r * Math.cos(-midAngle * RAD);
-    const y = cy + r * Math.sin(-midAngle * RAD);
-    return (
-      <g>
-        <text
-          x={x}
-          y={y}
-          textAnchor={x >= cx ? "start" : "end"}
-          dominantBaseline="middle"
-          style={{ fill: "#fff", fontWeight: 800, fontSize: 12 }}
-        >
-          {name} • {Math.round(value).toLocaleString()}
-        </text>
-      </g>
-    );
-  };
-
   return (
     <div className="aegis-donut" role="img" aria-label="Contributions breakdown">
-      <ResponsiveContainer width={180} height={180}>
-        <PieChart>
-          <defs>
-            <linearGradient id="ringTrack" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(255,255,255,.06)" />
-              <stop offset="100%" stopColor="rgba(255,255,255,.03)" />
-            </linearGradient>
-            <linearGradient id="sliceUSDT" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor={CROWNLESS.flame} />
-              <stop offset="100%" stopColor={CROWNLESS.gold} />
-            </linearGradient>
-            <linearGradient id="sliceUSDC" x1="1" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={CROWNLESS.steel} />
-              <stop offset="100%" stopColor={CROWNLESS.ice} />
-            </linearGradient>
-            <filter id="donutGlow" x="-40%" y="-40%" width="180%" height="180%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b" />
-              <feMerge>
-                <feMergeNode in="b" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
+      <PieChart width={180} height={180}>
+        <defs>
+          <linearGradient id="ringTrack" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(255,255,255,.06)" />
+            <stop offset="100%" stopColor="rgba(255,255,255,.03)" />
+          </linearGradient>
+          <linearGradient id="sliceUSDT" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor={CROWNLESS.flame} />
+            <stop offset="100%" stopColor={CROWNLESS.gold} />
+          </linearGradient>
+          <linearGradient id="sliceUSDC" x1="1" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={CROWNLESS.steel} />
+            <stop offset="100%" stopColor={CROWNLESS.ice} />
+          </linearGradient>
+          <filter id="donutGlow" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
 
-          {/* track */}
-          <Pie
-            data={[{ value: 1 }]}
-            dataKey="value"
-            innerRadius={54}
-            outerRadius={78}
-            fill="url(#ringTrack)"
-            stroke="rgba(0,0,0,.25)"
-            isAnimationActive={false}
-          />
+        {/* track */}
+        <Pie
+          data={[{ value: 1 }]}
+          dataKey="value"
+          innerRadius={54}
+          outerRadius={78}
+          fill="url(#ringTrack)"
+          stroke="rgba(0,0,0,.25)"
+          isAnimationActive={false}
+        />
 
-          {/* donut (no hover handlers, no active overlay) */}
-          <Pie
-            data={data}
-            dataKey="value"
-            nameKey="name"
-            innerRadius={54}
-            outerRadius={78}
-            stroke="rgba(0,0,0,.25)"
-            strokeWidth={1}
-            paddingAngle={data.filter(d => d.value > 0).length === 2 ? 2 : 0}
-            labelLine={false}
-            isAnimationActive={false}   // optional: remove initial animation too
-          >
-            {data.map((d) => (
-              <Cell
-                key={d.key}
-                fill={d.key === "usdt" ? "url(#sliceUSDT)" : "url(#sliceUSDC)"}
-                filter="url(#donutGlow)"
-              />
-            ))}
-          </Pie>
+        {/* donut */}
+        <Pie
+          data={data}
+          dataKey="value"
+          nameKey="name"
+          innerRadius={54}
+          outerRadius={78}
+          stroke="rgba(0,0,0,.25)"
+          strokeWidth={1}
+          paddingAngle={data.filter(d => d.value > 0).length === 2 ? 2 : 0}
+          labelLine={false}
+          isAnimationActive={false}
+        >
+          {data.map((d) => (
+            <Cell
+              key={d.key}
+              fill={d.key === "usdt" ? "url(#sliceUSDT)" : "url(#sliceUSDC)"}
+              filter="url(#donutGlow)"
+            />
+          ))}
+        </Pie>
 
-          {/* center */}
-          <text x="50%" y="46%" textAnchor="middle" className="donut-total">
-            {Math.round(total).toLocaleString()}
-          </text>
-          <text x="50%" y="61%" textAnchor="middle" className="donut-sub">
-            USD
-          </text>
-
-          {/* Tooltip removed to eliminate hover interaction */}
-        </PieChart>
-      </ResponsiveContainer>
+        {/* center text */}
+        <text x="50%" y="46%" textAnchor="middle" className="donut-total">
+          {Math.round(total).toLocaleString()}
+        </text>
+        <text x="50%" y="61%" textAnchor="middle" className="donut-sub">USD</text>
+      </PieChart>
 
       {/* Legend */}
       <div className="donut-legend" aria-hidden="true">
-        <span className="lg lg-usdt">
-          <i /> USDT
-        </span>
-        <span className="lg lg-usdc">
-          <i /> USDC
-        </span>
+        <span className="lg lg-usdt"><i /> USDT</span>
+        <span className="lg lg-usdc"><i /> USDC</span>
       </div>
     </div>
   );
 }
+
 
 
 
@@ -290,7 +238,7 @@ const [refRows, setRefRows] = useState([]);              // referral earnings ro
 
   const [addr,       setAddr]       = useState("");
   const [eqTotal,    setEqTotal]    = useState(0n);
-  const [crwTotal,   setCrwTotal]   = useState(0);
+  const [crlsTotal,   setCrlsTotal]   = useState(0);
   const [earnedLop,  setEarnedLop]  = useState(0n);
   const [earnedOne,  setEarnedOne]  = useState(0n);
 
@@ -318,6 +266,7 @@ const [usdcUsd, setUsdcUsd] = useState(0);
       } catch { setAddr(""); }
     })();
   }, [provider]);
+  
 
   /* pull data ----------------------------------------------------------------- */
  useEffect(() => {
@@ -388,7 +337,7 @@ const [usdcUsd, setUsdcUsd] = useState(0);
        setUsdtUsd(Number(formatUnits(sumUSDT, 18)));
 setUsdcUsd(Number(formatUnits(sumUSDC, 18)));
 
-       setCrwTotal(Math.round(Number(formatUnits(sumCRLS, 18)))); // total CRLS
+       setCrlsTotal(Math.round(Number(formatUnits(sumCRLS, 18)))); // total CRLS
      }
    } catch {}
 
@@ -487,6 +436,42 @@ try {
   }, [eqTotal]);
 
   const currentUSD = useMemo(() => Number(formatUnits(eqTotal)), [eqTotal]);
+
+
+  // ---- Tier progress (same logic/UX as round-progress) ----
+const levelIndex = useMemo(() => {
+  // highest index whose min <= currentUSD
+  let idx = 0;
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (currentUSD >= LEVELS[i].min) { idx = i; break; }
+  }
+  return idx;
+}, [currentUSD]);
+
+const currTier = LEVELS[levelIndex];
+const nextTier = LEVELS[levelIndex + 1] || null;
+
+// % within the CURRENT tier (min..next.min). Premium (Infinity) => 100%
+const pctInTier = useMemo(() => {
+  if (!nextTier) return 100;
+  const span = nextTier.min - currTier.min;
+  if (span <= 0) return 100;
+  const done = currentUSD - currTier.min;
+  return Math.max(0, Math.min(100, Math.round((done / span) * 100)));
+}, [currentUSD, currTier, nextTier]);
+
+// Labels like the rounds widget
+const currTierLabel = typeof currTier.lvl === "number" ? `Lv ${currTier.lvl}` : String(currTier.lvl);
+const prevTierLabel = levelIndex > 0
+  ? (typeof LEVELS[levelIndex - 1].lvl === "number" ? `Lv ${LEVELS[levelIndex - 1].lvl}` : String(LEVELS[levelIndex - 1].lvl))
+  : "—";
+const nextTierLabel = nextTier
+  ? (typeof nextTier.lvl === "number" ? `Lv ${nextTier.lvl}` : String(nextTier.lvl))
+  : "Max";
+
+
+
+
   const nextObj = LEVELS.find(l => currentUSD < l.min);
   const pctToNext = nextObj
     ? Math.min(100, Math.round(((currentUSD - levelObj.min) / (nextObj.min - levelObj.min)) * 100))
@@ -586,12 +571,12 @@ try {
 
       {/* HEADER */}
       <h2 className="sec-title">My&nbsp;Profile</h2>
-      <code style={{display:"block",fontSize:".8rem",textAlign:"center",marginBottom:"1.5rem"}}>
-        {addr ? `${addr.slice(0,6)}…${addr.slice(-4)}` : ""}
+      <code style={{display:"block",fontSize:"1rem",textAlign:"center",marginBottom:"1.5rem"}}>
+        Connected Address: {addr ? `${addr.slice(0,6)}…${addr.slice(-4)}` : ""} <p>Owned CRLS: {crlsTotal.toLocaleString()}</p>
       </code>
 
       {/* ====== Ana kartlar ====== */}
-      <div className="profile-cards">
+      <div className="profile-cards profile-cards--three">
         {/* Level */}
         <div className="card" style={{position:"relative"}}>
           <h4>Current Tier</h4>
@@ -601,18 +586,44 @@ try {
           >
             {typeof levelObj.lvl === "number" ? `Lv ${levelObj.lvl}` : levelObj.lvl}
           </p>
-          <p>{crwTotal.toLocaleString()} CRW</p>
+          
+
+
+            <div
+    className="round-progress"
+    role="progressbar"
+    aria-valuenow={pctInTier}
+    aria-valuemin={0}
+    aria-valuemax={100}
+    aria-label={`Tier progress ${pctInTier}%. ${prevTierLabel ? `Previous ${prevTierLabel}. ` : ""}${nextTierLabel ? `Next ${nextTierLabel}.` : ""}`}
+    style={{ marginTop: ".75rem" }}
+  >
+    <progress value={pctInTier} max="100" />
+
+    {/* LEFT: previous tier */}
+    <span className="round-progress__edge round-progress__edge--left">
+      ← {prevTierLabel}
+    </span>
+
+    {/* CENTER: percent */}
+    <span className="round-progress__label">
+      {currTierLabel}: {pctInTier}%
+    </span>
+
+    {/* RIGHT: next tier */}
+    <span className="round-progress__edge round-progress__edge--right">
+      {nextTierLabel} →
+    </span>
+  </div>
+
+<p className="lvl-note" style={{ marginTop: ".4rem" }}>
+  {nextTier ? `${Math.round(needUsd).toLocaleString()} USD to ${nextTierLabel}` : `Max tier reached`}
+</p>
+
+
         </div>
 
-        {/* Gauge (Next Tier) */}
-        <div className="card" style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
-          <h4 style={{marginBottom:"0.5rem"}}>Next Tier</h4>
-          {nextObj ? (
-            <TitanGauge pct={pctToNext} nextLabel={nextLabel} needUsd={Math.round(needUsd)} />
-          ) : (
-            <TitanGauge pct={100} nextLabel="Max" needUsd={0} />
-          )}
-        </div>
+
 
         {/* Donut (Contributions) */}
         <div className="card" style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
@@ -634,11 +645,6 @@ try {
 
         </div>
 
-        {/* Total referees (L1+L2) */}
-        <div className="card">
-          <h4>Total Referees</h4>
-          <p>{refCount}</p>
-        </div>
       </div>
 
       

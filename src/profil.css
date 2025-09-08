@@ -126,7 +126,7 @@
   margin: 1rem 0 1.25rem;
 }
 @media (min-width: 1060px){
-  .profile-cards{ grid-template-columns: repeat(5, 1fr); }
+  .profile-cards{ grid-template-columns: repeat(3, 1fr); }
 }
 
 .profile-cards .card{
