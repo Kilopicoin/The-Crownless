@@ -31,7 +31,9 @@ const ADMIN_ADDRESS   = "0x648aC85C1FA2E117Ab1d2B30f145361c80D00213";
 const ZERO_ADDRESS    = "0x0000000000000000000000000000000000000000";
 
 
-
+  const hasMetaMask = typeof window !== "undefined" && !!window.ethereum && !!window.ethereum.isMetaMask;
+  
+const WHITEPAPER_URL = "https://the-crownlesss-organization.gitbook.io/the-crownless/"; // <-- put your link here
 
 
 export const RING_Y = [298, 370, 442, 516, 588];
@@ -352,12 +354,6 @@ const ROUND_PRICES_USD = [
   0.0135, 0.0140, 0.0145, 0.0150,
 ];
 
-const TOKENS_PER_PART = [
-  10_000_000, 14_500_000, 19_000_000, 23_500_000,
-  28_000_000, 32_500_000, 37_000_000, 41_500_000,
-  46_000_000, 50_500_000, 55_000_000, 59_500_000,
-  64_000_000, 68_500_000, 73_000_000, 77_500_000,
-];
 
 // Targets in USD (18 decimals) per round (precalculated to avoid float drift)
 const TARGETS = [
@@ -387,12 +383,7 @@ const CHAINS = [
 
 
 /* ─────────────────────────  Reusable UI  ──────────────────────────────── */
-const ComingSoon = ({ title }) => (
-  <section className="coming-soon">
-    <h2>{title}</h2>
-    <p>Coming soon…</p>
-  </section>
-);
+
 
 const NavBar = ({ isAdmin }) => {
   const nav = useNavigate();
@@ -409,7 +400,15 @@ const NavBar = ({ isAdmin }) => {
             </button>
           </li>
         )}
-        <li><Link to="/whitepaper">Whitepaper</Link></li>
+         <li>
+   <a
+     href={WHITEPAPER_URL}
+     target="_blank"
+     rel="noopener noreferrer"
+   >
+     Whitepaper
+   </a>
+ </li>
       </ul>
     </nav>
   );
@@ -450,7 +449,7 @@ const LEVELS = [
   { lvl: 3,        min: 2_000,  max: 6_999,   nft: "Tier 3 NFT"    },
   { lvl: 4,        min: 7_000,  max: 19_999,  nft: "Tier 4 NFT" },
   { lvl: 5,        min: 20_000, max: 49_999,  nft: "Tier 5 NFT"  },
-  { lvl: "Premium",min: 50_000, max: 100_000 ,nft: "Tier 6 NFT"  },
+  { lvl: "Premium",min: 50_000, max: 100_000 ,nft: "Premium NFT"  },
 ];
 const LevelsTable = () => (
   <>
@@ -461,7 +460,7 @@ const LevelsTable = () => (
       </thead>
       <tbody>
         {LEVELS.map(l => {
-          const label = typeof l.lvl === "number" ? `Lv ${l.lvl}` : l.lvl;
+          const label = typeof l.lvl === "number" ? `${l.lvl}` : l.lvl;
           const range = l.max === Infinity ? `${l.min.toLocaleString()}+` : `${l.min.toLocaleString()} – ${l.max.toLocaleString()}`;
           return (
             <tr key={label}>
@@ -478,17 +477,16 @@ const LevelsTable = () => (
 );
 
 /* ─────────────────────────  Presale Card (EN – UPDATED, compact dropdown)  ───────────────────────── */
-const PresaleCard = ({ presale, provider }) => {
-
+const PresaleCard = ({ presale, provider, account, connectWallet }) => {
+ const [showCongrats, setShowCongrats] = useState(false);
+ const [lastBuy, setLastBuy] = useState({ amt: "", sym: "" });
   
-
+const isConnected = !!account; // we set this when user connects
 
   const loc = useLocation();
 
   const [paused, setPaused]           = useState(false);
   const [part, setPart]               = useState(0);
-  const [remain, setRemain]           = useState("…");
-  const [roundSupply, setRoundSupply] = useState(0);
   const [partPct, setPartPct]         = useState(0);
   const [ended, setEnded]             = useState(false);
 
@@ -532,12 +530,9 @@ const approxEqPpm = (a, b, ppm = 5000n) => {
 
 
   useEffect(() => {
-    if (!provider) return;
-    (async () => {
-      try { setMyAddr((await provider.getSigner()).address); }
-      catch { setMyAddr(""); }
-    })();
-  }, [provider]);
+    setMyAddr(account ?? "");
+  }, [account]);
+
 
     useEffect(() => {
   const pull = async () => {
@@ -567,14 +562,12 @@ const approxEqPpm = (a, b, ppm = 5000n) => {
     const tgtWei    = endedAll ? 1n : TARGETS[idx];
 
     const pct       = endedAll ? 100 : Number((inPartWei * 100n) / tgtWei);
-    const remainWei = endedAll ? 0n : (tgtWei - inPartWei);
 
     setPaused(isPaused);
     setEnded(endedAll);
     setPart(endedAll ? PARTS_COUNT - 1 : idx);
-    setRoundSupply(endedAll ? 0 : (TOKENS_PER_PART[idx] || 0));
     setPartPct(pct);
-    setRemain(formatUnits(remainWei)); // remaining USD-eq in current round
+
 
     // ======== NEW: on-chain price vs frontend round price ========
     // Contract stores "tokens per 1 stable" scaled by 1e18.
@@ -603,6 +596,14 @@ const approxEqPpm = (a, b, ppm = 5000n) => {
 
    const buy = async () => {
   if (!amount) return;
+
+
+
+  
+    if (!isConnected) {
+      await connectWallet();
+      if (!window.ethereum || !provider) return; // user cancelled or no MM
+    }
   if (paused) return setStatus("Pre-sale is paused");
   if (maintenance) return setStatus("Maintenance work is being carried out on the site, service will resume very soon.");
   if (!canPay) return setStatus("This network/asset is not active yet.");
@@ -652,8 +653,10 @@ const approxEqPpm = (a, b, ppm = 5000n) => {
       return setStatus("This asset is not enabled.");
     }
 
-    setStatus("✅ Contribution recorded!");
-    setAmount("");
+   setAmount("");
+   setStatus("");
+   setLastBuy({ amt: amount, sym: asset.symbol });
+   setShowCongrats(true);
   } catch (e) {
     setStatus(e?.shortMessage ?? e?.message ?? "Transaction failed");
   } finally {
@@ -803,9 +806,35 @@ const refUrl = React.useMemo(
             disabled={paused || loading}
           />
 
-          <button onClick={buy} disabled={paused || loading || !canPay || maintenance}>
-            {loading ? "Processing…" : `Contribute with ${asset.symbol}`}
-          </button>
+          {(() => {
+            // Decide label and click behavior
+            if (!hasMetaMask) {
+              return (
+                <button
+                  onClick={() => window.open("https://metamask.io/download", "_blank", "noopener")}
+                >
+                  Install MetaMask
+                </button>
+              );
+            }
+            if (!isConnected) {
+              return (
+                <button onClick={connectWallet}>
+                  Connect MetaMask
+                </button>
+              );
+            }
+            // Connected: normal contribute flow
+            return (
+              <button
+                onClick={buy}
+                disabled={paused || loading || !canPay || maintenance}
+              >
+                {loading ? "Processing…" : `Contribute with ${asset.symbol}`}
+              </button>
+            );
+          })()}
+
         </>
       )}
 
@@ -861,13 +890,94 @@ const refUrl = React.useMemo(
           </div>
         </div>
       )}
+
+
+
+
+     {showCongrats && (
+       <div style={{
+         position:"fixed", inset:0, zIndex:10001,
+         display:"grid", placeItems:"center",
+         background:"rgba(0,0,0,.75)",
+         backdropFilter:"blur(4px)"
+       }}
+         role="dialog" aria-modal="true" aria-label="Contribution success"
+       >
+         <style>{`
+           @keyframes pop { 0%{transform:scale(.8);opacity:0} 100%{transform:scale(1);opacity:1} }
+           @keyframes confetti {
+             0% { transform: translateY(-60vh) rotate(0deg); opacity: 0; }
+             10% { opacity: 1; }
+             100% { transform: translateY(60vh) rotate(540deg); opacity: 0; }
+           }
+           .cg-card {
+             width:min(640px, 92vw);
+             background: radial-gradient(120% 140% at 50% 0%, rgba(255,180,80,.12), rgba(0,0,0,.35)) ,
+                         linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+             border:1px solid rgba(201,162,75,.35);
+             box-shadow:0 30px 80px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.03);
+             border-radius:20px; padding:28px 28px 24px; text-align:center;
+             animation: pop .28s ease-out both;
+           }
+           .cg-title { font:900 2.1rem/1.15 Inter, system-ui; letter-spacing:.4px; color:#fff5dc; text-shadow:0 0 14px rgba(201,162,75,.35); }
+           .cg-sub   { margin-top:.5rem; opacity:.9; }
+           .cg-row   { display:flex; gap:12px; justify-content:center; margin-top:18px; flex-wrap:wrap; }
+           .cg-btn {
+             padding:10px 16px; border-radius:12px; font-weight:800; letter-spacing:.3px;
+             border:1px solid rgba(201,162,75,.45); background:linear-gradient(90deg,#FF4800,#C9A24B);
+             color:#0b0b0b; box-shadow:0 10px 26px rgba(0,0,0,.45);
+           }
+           .cg-btn.secondary {
+             background:rgba(255,255,255,.06); color:#fff; border:1px solid rgba(255,255,255,.15);
+           }
+           .confetti { position:fixed; inset:0; pointer-events:none; z-index:10002; overflow:hidden; }
+           .confetti i{
+             position:absolute; top:-10vh; width:8px; height:12px; border-radius:2px;
+             background:linear-gradient(180deg,#FF4800,#C9A24B);
+             animation: confetti 2.2s ease-in forwards;
+           }
+         `}</style>
+
+         {/* simple confetti sprinkles */}
+         <div className="confetti" aria-hidden="true">
+           {Array.from({ length: 40 }).map((_,i)=>(
+             <i key={i} style={{
+               left: `${(i*97)%100}%`,
+               animationDelay: `${(i%10)*0.05}s`,
+               transform: `translateY(-60vh) rotate(${i*37}deg)`,
+               opacity: 0
+             }}/>
+           ))}
+         </div>
+
+         <div className="cg-card">
+           <div style={{fontSize:"3rem", lineHeight:1, marginBottom:6}}>🎉</div>
+           <div className="cg-title">Contribution Successful</div>
+           <p className="cg-sub">
+             Thank you! You contributed <strong>{lastBuy.amt} {lastBuy.sym}</strong>.
+           </p>
+           <div className="cg-row">
+             <button className="cg-btn" onClick={() => setShowCongrats(false)}>
+               Continue
+             </button>
+             <Link className="cg-btn secondary" to="/profile" onClick={()=>setShowCongrats(false)}>
+               View Profile
+             </Link>
+           </div>
+         </div>
+       </div>
+     )}
+
+
+
+
     </section>
   );
 };
 
 
 /* ─────────────────────────  Token Page  ──────────────────────────────── */
-const TokenPage = ({ presale, provider }) => (
+const TokenPage = ({ presale, provider, account, connectWallet }) => (
   <div className="home-wrap token-layout">
     <aside className="info-column">
       <h1 className="game-title">Token Pre-Sale</h1>
@@ -878,7 +988,12 @@ const TokenPage = ({ presale, provider }) => (
       <LevelsTable />
     </aside>
     <div className="card-column">
-      <PresaleCard presale={presale} provider={provider} />
+      <PresaleCard
+        presale={presale}
+        provider={provider}
+        account={account}
+        connectWallet={connectWallet}
+      />
     </div>
   </div>
 );
@@ -1067,33 +1182,83 @@ const AdminPanel = ({ presale, provider }) => {
   );
 };
 
+ 
+
 /* ─────────────────────────  ROOT APP  ─────────────────────────────── */
 function App() {
   const [presale, setPresale]   = useState(null);
   const [provider, setProvider] = useState(null);
   const [isAdmin, setIsAdmin]   = useState(false);
 
-  useEffect(() => {
-    const init = async () => {
-      const c = window.ethereum ? await getSignerContract() : getContract();
-      const p = window.ethereum ? new BrowserProvider(window.ethereum) : null;
-      setPresale(c); setProvider(p);
-      if (p) {
-        const addr = (await p.getSigner()).address.toLowerCase();
-        setIsAdmin(addr === ADMIN_ADDRESS.toLowerCase());
-      }
-    };
-    init();
-    if (window.ethereum) {
-      window.ethereum.on("accountsChanged", init);
-      window.ethereum.on("chainChanged",  init);
+  const [account, setAccount] = useState(null);
+
+   
+
+
+  const connectWallet = async () => {
+    if (!window.ethereum || !window.ethereum.isMetaMask) {
+      window.open("https://metamask.io/download", "_blank", "noopener");
+      return;
     }
-    return () => {
-      if (window.ethereum) {
-        window.ethereum.removeListener("accountsChanged", init);
-        window.ethereum.removeListener("chainChanged",  init);
-      }
-    };
+    const accts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    const selected = accts?.[0] ?? null;
+    setAccount(selected);
+    const p = new BrowserProvider(window.ethereum);
+    setProvider(p);
+    setIsAdmin((selected ?? "").toLowerCase() === ADMIN_ADDRESS.toLowerCase());
+    // Optional: upgrade presale to signer-backed after connect, otherwise keep read-only
+    // setPresale(await getSignerContract());
+  };
+
+
+
+
+  useEffect(() => {
+    
+
+    setPresale(getContract());
+
+    // If MetaMask is present, check accounts silently (no prompt).
+    if (window.ethereum) {
+      window.ethereum.request({ method: "eth_accounts" }).then(async (accts) => {
+        if (accts && accts.length) {
+          setAccount(accts[0]);
+          const p = new BrowserProvider(window.ethereum);
+          setProvider(p);
+          setIsAdmin(accts[0].toLowerCase() === ADMIN_ADDRESS.toLowerCase());
+        } else {
+          setAccount(null); 
+          setProvider(null);
+          setIsAdmin(false);
+        }
+      });
+    }
+
+        if (window.ethereum) {
+      window.ethereum.on("accountsChanged", (accts) => {
+        const a0 = accts?.[0] ?? null;
+        setAccount(a0);
+        if (a0) {
+          setProvider(new BrowserProvider(window.ethereum));
+          setIsAdmin(a0.toLowerCase() === ADMIN_ADDRESS.toLowerCase());
+        } else {
+          setProvider(null);
+          setIsAdmin(false);
+        }
+      });
+      window.ethereum.on("chainChanged", () => {
+        // Keep read-only until user reconnects explicitly
+        setAccount(null);
+        setProvider(null);
+      });
+     }
+     return () => {
+       if (window.ethereum) {
+        window.ethereum.removeAllListeners("accountsChanged");
+        window.ethereum.removeAllListeners("chainChanged");
+       }
+     };
+
   }, []);
 
   useEffect(() => {
@@ -1112,12 +1277,11 @@ function App() {
       <NavBar isAdmin={isAdmin} />
       <Routes>
         <Route path="/"           element={<LandingHome presale={presale} />} />
-        <Route path="/token"      element={<TokenPage  presale={presale} provider={provider} />} />
-        <Route path="/whitepaper" element={<ComingSoon title="Whitepaper" />} />
+        <Route path="/token"      element={<TokenPage  presale={presale} provider={provider} account={account} connectWallet={connectWallet} />} />
         {isAdmin && (
           <Route path="/admin" element={<AdminPanel presale={presale} provider={provider} />} />
         )}
-        <Route path="/profile" element={<ProfilePage presale={presale} provider={provider} />} />
+        <Route path="/profile" element={<ProfilePage presale={presale} provider={provider} account={account} connectWallet={connectWallet} />} />
       </Routes>
     </Router>
   );
