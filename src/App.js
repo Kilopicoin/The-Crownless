@@ -1,13 +1,11 @@
 /* eslint-env es2020, browser */
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import {
   BrowserRouter as Router, Routes, Route, Link,
   useNavigate, useLocation,
 } from "react-router-dom";
-import {
-  BrowserProvider, formatUnits, parseUnits,
-} from "ethers";
+import { BrowserProvider, formatUnits, parseUnits, Contract } from "ethers";
 import { getContract, getSignerContract, contractAddress } from "./contractbnb";
 import { getusdtbnbSignerContract } from "./usdtcontractbnb";
 import { getusdcbnbSignerContract } from "./usdccontractbnb";
@@ -27,7 +25,6 @@ import iconOwn   from "./assets/uc.png";
 import iconGuild from "./assets/dort.png";
 
 /* ----------------- DİKKAT: Aşağıdaki adresler mevcut haliyle korundu ----------------- */
-const ADMIN_ADDRESS   = "0x648aC85C1FA2E117Ab1d2B30f145361c80D00213";
 const ZERO_ADDRESS    = "0x0000000000000000000000000000000000000000";
 
 
@@ -581,8 +578,7 @@ const approxEqPpm = (a, b, ppm = 5000n) => {
   };
 
   pull();
-  const t = setInterval(pull, 20_000);
-  return () => clearInterval(t);
+
 }, [presale]);
 
 
@@ -999,188 +995,328 @@ const TokenPage = ({ presale, provider, account, connectWallet }) => (
 );
 
 /* ─────────────────────────  Admin Panel  ─────────────────────────────── */
-const AdminPanel = ({ presale, provider }) => {
+const ERC20_ABI_MIN = [
+  "function balanceOf(address) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)"
+];
+
+const AdminPanel = ({ presale, provider, account }) => {
+  const [loading, setLoading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState("");
+
+  // status panel fields
+  const [owner, setOwner] = useState("");
+  const [switcher, setSwitcher] = useState("");
   const [paused, setPaused] = useState(false);
-  const [rowsC, setRowsC]   = useState(null);
-  const [rowsW, setRowsW]   = useState(null);
-  const [progC, setProgC]   = useState(0);
-  const [progW, setProgW]   = useState(0);
-  const [wTok, setWTok]     = useState("LOP");
-  const [wAmt, setWAmt]     = useState("");
-  const [status, setStatus] = useState("");
-  const [totRef, setTotRef] = useState("0");
+  const [switchStatus, setSwitchStatusState] = useState(false);
+  const [price1e18, setPrice1e18] = useState(0n);
+  const [netContribWei, setNetContribWei] = useState(0n);
+  const [usdtAddr, setUsdtAddr] = useState("");
+  const [usdcAddr, setUsdcAddr] = useState("");
+  const [usdtBal, setUsdtBal] = useState("0");
+  const [usdcBal, setUsdcBal] = useState("0");
+  const [usdtSym, setUsdtSym] = useState("USDT");
+  const [usdcSym, setUsdcSym] = useState("USDC");
 
-  useEffect(() => { presale && presale.paused().then(setPaused); }, [presale]);
+  // owner panel inputs
+  const [newPriceUsd, setNewPriceUsd] = useState(""); // USD per CRLS (e.g., 0.0100)
 
-  const loadContributions = async () => {
+  const lc = (x) => (x || "").toLowerCase();
+  const isOwner = account && lc(account) === lc(owner);
+  const isSwitcher = account && lc(account) === lc(switcher);
+
+  const fmt = (wei) =>
+    Number(formatUnits(wei)).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+
+  const tokensPerStableFrom1e18 = (v) => Number(v) / 1e18; // tokens per $1
+  const usdPerToken = (v) => {
+    const tps = tokensPerStableFrom1e18(v);
+    if (!tps || !isFinite(tps)) return "0";
+    return (1 / tps).toFixed(6); // display USD price per token
+  };
+
+  const priceUsdToTokensPerStable1e18 = (usd) => {
+    // integer math like in your frontend contrib card
+    const micro = Math.round(Number(usd) * 1_000_000); // e.g. 0.0100 -> 10000
+    const DEN = BigInt(micro);
+    const NUM = 1_000_000n * 10n ** 18n; // 1e24
+    if (DEN === 0n) return 0n;
+    return NUM / DEN; // floor
+  };
+
+  const refresh = async () => {
     if (!presale) return;
-    setRowsC(null); setProgC(0);
+    try {
+      setLoading(true);
 
-    const histCollected = Array(PARTS_COUNT).fill(0n);
-    let curPart = 0;
-    const out   = [];
-    let grossWei  = 0n;
+      const [
+        _owner,
+        _switcher,
+        _paused,
+        _switch,
+        _price,
+        _net,
+        _usdt,
+        _usdc
+      ] = await Promise.all([
+        presale.owner(),
+        presale.switcher(),
+        presale.paused(),
+        presale.switchStatus(),
+        presale.priceTokensPerStable_1e18(),
+        presale.netContributed(),
+        presale.USDT(),
+        presale.USDC()
+      ]);
 
-    const total = Number(await presale.contributionsCount());
-    const raw   = [];
-    for (let i = 0; i < total; i++) raw.push(await presale.contributions(i));
+      setOwner(_owner);
+      setSwitcher(_switcher);
+      setPaused(_paused);
+      setSwitchStatusState(_switch);
+      setPrice1e18(BigInt(_price));
+      setNetContribWei(BigInt(_net));
+      setUsdtAddr(_usdt);
+      setUsdcAddr(_usdc);
 
-    raw.sort((a, b) => Number(a.ts) - Number(b.ts));
+      // read token balances (assume 18 decimals on BSC as in your app)
+      if (provider) {
+        const r = provider; // read-only provider
+        const usdt = new Contract(_usdt, ERC20_ABI_MIN, r);
+        const usdc = new Contract(_usdc, ERC20_ABI_MIN, r);
 
-    for (let idx = 0; idx < raw.length; idx++) {
-      const c       = raw[idx];
-      const amtWei  = BigInt(c.amountEq);
-      grossWei     += amtWei;
+        // try to pick symbols/decimals from chain (fallbacks if fail)
+        let [usdtDec, usdcDec, usdtSymbol, usdcSymbol, balUsdt, balUsdc] =
+          await Promise.allSettled([
+            usdt.decimals(),
+            usdc.decimals(),
+            usdt.symbol(),
+            usdc.symbol(),
+            usdt.balanceOf(presale.target ?? presale.address),
+            usdc.balanceOf(presale.target ?? presale.address)
+          ]);
 
-      let remainWei = amtWei;
-      let tokens    = 0;
-      let pIter     = curPart;
+        const decUSDT =
+          usdtDec.status === "fulfilled" ? usdtDec.value : 18;
+        const decUSDC =
+          usdcDec.status === "fulfilled" ? usdcDec.value : 18;
 
-      while (remainWei > 0n && pIter < PARTS_COUNT) {
-        const room = TARGETS[pIter] - histCollected[pIter];
-        const take = remainWei > room ? room : remainWei;
-
-        tokens += Number(formatUnits(take)) / priceForPart(pIter);
-        histCollected[pIter] += take;
-
-        if (histCollected[pIter] === TARGETS[pIter]) pIter++;
-        remainWei -= take;
+        setUsdtSym(usdtSymbol.status === "fulfilled" ? usdtSymbol.value : "USDT");
+        setUsdcSym(usdcSymbol.status === "fulfilled" ? usdcSymbol.value : "USDC");
+        setUsdtBal(
+          balUsdt.status === "fulfilled"
+            ? Number(formatUnits(balUsdt.value, decUSDT)).toLocaleString()
+            : "0"
+        );
+        setUsdcBal(
+          balUsdc.status === "fulfilled"
+            ? Number(formatUnits(balUsdc.value, decUSDC)).toLocaleString()
+            : "0"
+        );
       }
-      curPart = pIter;
-
-      out.push({
-        date : new Date(Number(c.ts) * 1000),
-        addr : c.user,
-        part : Number(c.part) + 1,
-        price: priceForPart(Number(c.part)).toFixed(4),
-        amt  : formatUnits(c.amountEq),
-        crls  : Math.round(tokens).toLocaleString(),
-      });
-
-      if (idx % 50 === 0) setProgC(Math.round(((idx + 1) / raw.length) * 100));
+    } catch (e) {
+      setStatusMsg(e?.shortMessage ?? e?.message ?? "Failed to load status");
+    } finally {
+      setLoading(false);
     }
-
-    out.sort((a, b) => b.date - a.date);
-    setRowsC(out); setProgC(100);
-
-    const netWei = await presale.totalCollected();
-    const refWei = grossWei > netWei ? grossWei - netWei : 0n;
-    setTotRef(formatUnits(refWei));
   };
 
-  const loadWithdrawals = async () => {
-    if (!presale) return;
-    setRowsW(null); setProgW(0);
-    const total = Number(await presale.withdrawalsCount());
-    const out = [];
-    for (let i = 0; i < total; i++) {
-      const w = await presale.withdrawals(i);
-      out.push({
-        date: new Date(Number(w.ts) * 1000),
-        token: w.token.toLowerCase() === ZERO_ADDRESS.toLowerCase() ? "ONE" : "LOP",
-        amt: formatUnits(w.amount),
-      });
-      if (i % 50 === 0) setProgW(Math.round(((i + 1) / total) * 100));
+  useEffect(() => {
+    refresh();
+    // also refresh periodically
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presale, provider, account]);
+
+  /* ──────────── Actions ──────────── */
+  const needSigner = async () => {
+    if (!provider) throw new Error("Connect wallet first");
+    return await provider.getSigner();
+  };
+
+  const actOwnerPause = async () => {
+    try {
+      setLoading(true);
+      setStatusMsg(paused ? "Resuming…" : "Pausing…");
+      const signer = await needSigner();
+      const tx = paused
+        ? await presale.connect(signer).unpause()
+        : await presale.connect(signer).pause();
+      await tx.wait();
+      setStatusMsg("✅ Done");
+      refresh();
+    } catch (e) {
+      setStatusMsg(e?.shortMessage ?? e?.message ?? "Action failed");
+    } finally {
+      setLoading(false);
     }
-    out.sort((a, b) => b.date - a.date);
-    setRowsW(out); setProgW(100);
   };
 
-  const totC = useMemo(() => rowsC?.reduce((s, r) => s + +r.amt, 0).toFixed(2) ?? "0", [rowsC]);
-
-  const togglePause = async () => {
-    if (!provider || !presale) return;
+  const actOwnerSetPrice = async () => {
     try {
-      setStatus(paused ? "Resuming…" : "Pausing…");
-      await (await presale.connect(await provider.getSigner()).setPaused(!paused)).wait();
-      setPaused(!paused); setStatus("✅ Done");
-    } catch (e) { setStatus(e.shortMessage ?? e.message); }
+      if (!newPriceUsd) return setStatusMsg("Enter USD price per token");
+      if (!paused) return setStatusMsg("Contract must be paused");
+      if (!switchStatus)
+        return setStatusMsg("Switch must be ON to set price");
+      const signer = await needSigner();
+      setLoading(true);
+      setStatusMsg("Setting price…");
+
+      const p1e18 = priceUsdToTokensPerStable1e18(newPriceUsd);
+      if (p1e18 === 0n) throw new Error("Invalid price");
+      const tx = await presale
+        .connect(signer)
+        .setPrice(p1e18);
+      await tx.wait();
+      setStatusMsg("✅ Price updated");
+      setNewPriceUsd("");
+      refresh();
+    } catch (e) {
+      setStatusMsg(e?.shortMessage ?? e?.message ?? "Action failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const doWithdraw = async () => {
-    if (!presale || !provider || !wAmt) return;
+  const actOwnerWithdrawAll = async () => {
     try {
-      const amtWei = parseUnits(wAmt, 18);
-      setStatus("Withdrawing…");
-      const signer = await provider.getSigner();
-      if (wTok === "LOP")
-        await (await presale.connect(signer).withdrawLOP(amtWei)).wait();
-      else
-        await (await presale.connect(signer).withdrawONE(amtWei)).wait();
-      setStatus("✅ Withdraw sent"); setWAmt("");
-    } catch (e) { setStatus(e.shortMessage ?? e.message); }
+      if (!paused) return setStatusMsg("Contract must be paused");
+      if (!switchStatus)
+        return setStatusMsg("Switch must be ON to withdraw");
+      const signer = await needSigner();
+      setLoading(true);
+      setStatusMsg("Withdrawing all…");
+      const tx = await presale.connect(signer).withdrawAll();
+      await tx.wait();
+      setStatusMsg("✅ Withdraw completed");
+      refresh();
+    } catch (e) {
+      setStatusMsg(e?.shortMessage ?? e?.message ?? "Action failed");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const actSwitcherToggle = async () => {
+    try {
+      const signer = await needSigner();
+      setLoading(true);
+      setStatusMsg("Toggling switch…");
+      const tx = await presale.connect(signer).setSwitchStatus();
+      await tx.wait();
+      setStatusMsg("✅ Switch toggled");
+      refresh();
+    } catch (e) {
+      setStatusMsg(e?.shortMessage ?? e?.message ?? "Action failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ──────────── UI ──────────── */
+  const PriceRow = () => (
+    <div className="kv">
+      <div>Current Price</div>
+      <div>
+        {tokensPerStableFrom1e18(price1e18).toFixed(2)} tokens / $1
+        {"  "}(
+        ${usdPerToken(price1e18)} per token)
+      </div>
+    </div>
+  );
 
   return (
-    <section className="admin-panel">
-      <h2>Admin Panel</h2>
-      <button className="pause-btn" onClick={togglePause}>
-        {paused ? "Resume Pre-Sale" : "Pause Pre-Sale"}
-      </button>
+    <>
+    <div className="admin-grid">
 
-      <div className="withdraw-wrap">
-        <select value={wTok} onChange={e => setWTok(e.target.value)}>
-          <option value="LOP">LOP</option><option value="ONE">ONE</option>
-        </select>
-        <input type="number" placeholder="Amount"
-               value={wAmt} onChange={e => setWAmt(e.target.value)} />
-        <button onClick={doWithdraw}>Withdraw</button>
+      <section className="admin-panel">
+        <h2>Status Panel</h2>
+
+        <div className="kv"><div>Connected</div><div>{account || "—"}</div></div>
+        <div className="kv"><div>Owner</div><div>{owner || "—"}</div></div>
+        <div className="kv"><div>Switcher</div><div>{switcher || "—"}</div></div>
+        <div className="kv"><div>Your Role</div>
+          <div>{isOwner ? "Owner" : isSwitcher ? "Switcher" : "Viewer"}</div>
+        </div>
+
+        <div className="kv"><div>Paused</div><div>{paused ? "Yes" : "No"}</div></div>
+        <div className="kv"><div>Switch</div><div>{switchStatus ? "ON" : "OFF"}</div></div>
+        <PriceRow />
+        <div className="kv"><div>Net Contributed</div><div>${fmt(netContribWei)}</div></div>
+
+        <div className="divider" />
+
+        <div className="kv"><div>USDT Address</div><div>{usdtAddr || "—"}</div></div>
+        <div className="kv"><div>USDC Address</div><div>{usdcAddr || "—"}</div></div>
+        <div className="kv"><div>{usdtSym} Balance</div><div>{usdtBal}</div></div>
+        <div className="kv"><div>{usdcSym} Balance</div><div>{usdcBal}</div></div>
+
+        <div className="row">
+          <button onClick={refresh} disabled={loading}>Refresh</button>
+        </div>
+
+        {statusMsg && <p className="status" style={{ marginTop: 10 }}>{statusMsg}</p>}
+      </section>
+
+      <section className="admin-panel">
+        <h2>Owner Panel</h2>
+
+        {!isOwner && <p>Connect with the <b>owner</b> wallet to use these actions.</p>}
+
+        <div className="row">
+          <button onClick={actOwnerPause} disabled={!isOwner || loading}>
+            {paused ? "Unpause" : "Pause"}
+          </button>
+        </div>
+
+        <div className="row">
+          <input
+            type="number"
+            step="0.0001"
+            placeholder="USD per token (e.g. 0.0100)"
+            value={newPriceUsd}
+            onChange={(e) => setNewPriceUsd(e.target.value)}
+            disabled={!isOwner || loading}
+          />
+          <button
+            onClick={actOwnerSetPrice}
+            disabled={!isOwner || loading || !paused || !switchStatus}
+            title={!paused ? "Contract must be paused" : (!switchStatus ? "Switch must be ON" : "")}
+          >
+            Set Price
+          </button>
+        </div>
+
+        <div className="row">
+          <button
+            onClick={actOwnerWithdrawAll}
+            disabled={!isOwner || loading || !paused || !switchStatus}
+            title={!paused ? "Contract must be paused" : (!switchStatus ? "Switch must be ON" : "")}
+          >
+            Withdraw All (USDT & USDC)
+          </button>
+        </div>
+      </section>
+
+      <section className="admin-panel">
+        <h2>Switcher Panel</h2>
+
+        {!isSwitcher && <p>Connect with the <b>switcher</b> wallet to use these actions.</p>}
+
+        <div className="row">
+          <button onClick={actSwitcherToggle} disabled={!isSwitcher || loading}>
+            Toggle Switch (currently {switchStatus ? "ON" : "OFF"})
+          </button>
+        </div>
+      </section>
       </div>
-
-      {status && <p className="status">{status}</p>}
-
-      <div className="data-buttons">
-        <button onClick={loadContributions}>Load Contributions</button>
-        <button onClick={loadWithdrawals}>Load Withdrawals</button>
-      </div>
-
-      {!rowsC && progC > 0 && <p>Loading… {progC}%</p>}
-      {rowsC && (
-        <>
-          <h3>Contributions — total {totC} (refs {totRef})</h3>
-          <div className="table-wrap">
-            <table className="adm-table">
-              <thead>
-              <tr><th>Date</th><th>Wallet</th><th>Part</th>
-                <th>Price $</th><th>Amount</th><th>CRLS</th></tr>
-              </thead>
-              <tbody>
-                {rowsC.map((r,i) => (
-                  <tr key={i}>
-                    <td>{r.date.toLocaleString()}</td><td>{r.addr}</td>
-                    <td>{r.part}</td><td>{r.price}</td><td>{r.amt}</td><td>{r.crls}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {!rowsW && progW > 0 && <p>Loading… {progW}%</p>}
-      {rowsW && (
-        <>
-          <h3 style={{marginTop:"1.5rem"}}>Withdrawals — total {
-            rowsW.reduce((s,r)=>s+ +r.amt,0).toFixed(2)
-          }</h3>
-          <div className="table-wrap">
-            <table className="adm-table">
-              <thead><tr><th>Date</th><th>Token</th><th>Amount</th></tr></thead>
-              <tbody>
-                {rowsW.map((w,i) => (
-                  <tr key={i}>
-                    <td>{w.date.toLocaleString()}</td>
-                    <td>{w.token}</td><td>{w.amt}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-    </section>
+    </>
   );
 };
+
 
  
 
@@ -1191,7 +1327,8 @@ function App() {
   const [isAdmin, setIsAdmin]   = useState(false);
 
   const [account, setAccount] = useState(null);
-
+const [ownerAddr, setOwnerAddr]       = useState(null);
+const [switcherAddr, setSwitcherAddr] = useState(null);
    
 
 
@@ -1205,11 +1342,17 @@ function App() {
     setAccount(selected);
     const p = new BrowserProvider(window.ethereum);
     setProvider(p);
-    setIsAdmin((selected ?? "").toLowerCase() === ADMIN_ADDRESS.toLowerCase());
+    recomputeIsAdmin(selected, ownerAddr, switcherAddr);
     // Optional: upgrade presale to signer-backed after connect, otherwise keep read-only
     // setPresale(await getSignerContract());
   };
 
+const recomputeIsAdmin = (acct, ownerA, switcherA) => {
+  const a = (acct ?? "").toLowerCase();
+  const o = (ownerA ?? "").toLowerCase();
+  const s = (switcherA ?? "").toLowerCase();
+  setIsAdmin(!!a && (a === o || a === s));
+};
 
 
 
@@ -1218,6 +1361,20 @@ function App() {
 
     setPresale(getContract());
 
+    (async () => {
+  const c = getContract();
+  try {
+    const [own, sw] = await Promise.all([c.owner(), c.switcher()]);
+    setOwnerAddr(own);
+    setSwitcherAddr(sw);
+    // If an account is already known (silent connect), evaluate admin now:
+    if (account) recomputeIsAdmin(account, own, sw);
+  } catch (e) {
+    console.warn("Failed to read owner/switcher:", e);
+  }
+})();
+
+
     // If MetaMask is present, check accounts silently (no prompt).
     if (window.ethereum) {
       window.ethereum.request({ method: "eth_accounts" }).then(async (accts) => {
@@ -1225,7 +1382,6 @@ function App() {
           setAccount(accts[0]);
           const p = new BrowserProvider(window.ethereum);
           setProvider(p);
-          setIsAdmin(accts[0].toLowerCase() === ADMIN_ADDRESS.toLowerCase());
         } else {
           setAccount(null); 
           setProvider(null);
@@ -1236,21 +1392,30 @@ function App() {
 
         if (window.ethereum) {
       window.ethereum.on("accountsChanged", (accts) => {
-        const a0 = accts?.[0] ?? null;
-        setAccount(a0);
-        if (a0) {
-          setProvider(new BrowserProvider(window.ethereum));
-          setIsAdmin(a0.toLowerCase() === ADMIN_ADDRESS.toLowerCase());
-        } else {
-          setProvider(null);
-          setIsAdmin(false);
-        }
+        if (accts && accts.length) {
+  setAccount(accts[0]);
+  const p = new BrowserProvider(window.ethereum);
+  setProvider(p);
+  recomputeIsAdmin(accts[0], ownerAddr, switcherAddr);
+} else {
+  setAccount(null);
+  setProvider(null);
+  setIsAdmin(false);
+}
+
       });
-      window.ethereum.on("chainChanged", () => {
-        // Keep read-only until user reconnects explicitly
-        setAccount(null);
-        setProvider(null);
-      });
+      window.ethereum.on("accountsChanged", (accts) => {
+  const a0 = accts?.[0] ?? null;
+  setAccount(a0);
+  if (a0) {
+    setProvider(new BrowserProvider(window.ethereum));
+    recomputeIsAdmin(a0, ownerAddr, switcherAddr);
+  } else {
+    setProvider(null);
+    setIsAdmin(false);
+  }
+});
+
      }
      return () => {
        if (window.ethereum) {
@@ -1259,7 +1424,7 @@ function App() {
        }
      };
 
-  }, []);
+  }, [account, ownerAddr, switcherAddr]);
 
   useEffect(() => {
     const hero = document.querySelector(".hero-banner");
@@ -1278,9 +1443,12 @@ function App() {
       <Routes>
         <Route path="/"           element={<LandingHome presale={presale} />} />
         <Route path="/token"      element={<TokenPage  presale={presale} provider={provider} account={account} connectWallet={connectWallet} />} />
-        {isAdmin && (
-          <Route path="/admin" element={<AdminPanel presale={presale} provider={provider} />} />
-        )}
+ {isAdmin && (
+   <Route
+     path="/admin"
+     element={<AdminPanel presale={presale} provider={provider} account={account} />}
+   />
+ )}
         <Route path="/profile" element={<ProfilePage presale={presale} provider={provider} account={account} connectWallet={connectWallet} />} />
       </Routes>
     </Router>

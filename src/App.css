@@ -544,30 +544,176 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
   .info-column{ padding-right:var(--gap-l) }
 }
 
-/* © 9. ADMIN PANEL ------------------------------------------------------ */
-.admin-panel{
-  background:var(--clr-surface); border:1px solid var(--clr-border);
-  border-radius:var(--radius-soft); padding:var(--gap-l);
+/* ───────── Admin Panel Layout & Skin ───────── */
+.admin-panel {
+  --panel-bg: var(--clr-surface, #101014);
+  --panel-text: var(--clr-text-main, #eae8e1);
+  --panel-border: var(--clr-border, rgba(255,255,255,0.08));
+  --panel-shadow: 0 14px 40px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.02);
+
+  background: radial-gradient(140% 160% at 50% 0%, rgba(201,162,75,.06), rgba(0,0,0,0)) , var(--panel-bg);
+  color: var(--panel-text);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+  margin: 24px 0;
+  box-shadow: var(--panel-shadow);
 }
-.admin-panel h2{ color:var(--clr-accent-gold); text-align:center; margin-bottom:var(--gap-l) }
-.pause-btn,.withdraw-wrap button,.data-buttons button{
-  padding:var(--gap-xs) var(--gap-m); border:1px solid var(--clr-border); border-radius:var(--radius-soft);
-  background:var(--clr-accent-ember); color:#fff; cursor:pointer; transition:opacity var(--dur-fast);
+
+.admin-panel h2 {
+  font: 800 1.1rem/1.2 Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
+  letter-spacing: .2px;
+  margin: 0 0 14px;
+  color: var(--clr-accent-gold, #e9c36a);
+  text-shadow: 0 0 12px rgba(201,162,75,.18);
 }
-.pause-btn:hover,.withdraw-wrap button:hover,.data-buttons button:hover{ opacity:.8 }
-.withdraw-wrap{ display:flex; gap:var(--gap-s); flex-wrap:wrap; margin-block:var(--gap-m) }
-.withdraw-wrap input,.withdraw-wrap select{
-  flex:1; min-width:100px; padding:var(--gap-xs); border:1px solid var(--clr-border);
-  background:var(--clr-bg-dark); color:var(--clr-text-main); border-radius:var(--radius-soft);
+
+/* ───────── Status Key/Value Grid ───────── */
+.kv {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 8px 14px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--panel-border);
 }
-.data-buttons{ display:flex; gap:var(--gap-s); flex-wrap:wrap; margin-top:var(--gap-m) }
-.table-wrap{ overflow-x:auto; margin-top:var(--gap-m) }
-.adm-table{
-  width:100%; min-width:640px; border-collapse:collapse; font-size:.83rem;
+.kv:last-of-type { border-bottom: none; }
+.kv > div:first-child {
+  opacity: .85;
+  font-weight: 600;
 }
-.adm-table th,.adm-table td{ border:1px solid var(--clr-border); padding:var(--gap-xs) var(--gap-s) }
-.adm-table th{ background:var(--clr-border) }
-.admin-panel p.status{ text-align:center; margin-top:var(--gap-s) }
+.kv > div:last-child {
+  word-break: break-all; /* for long addresses */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: .95rem;
+}
+
+/* ───────── Row (controls) ───────── */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+/* Inputs */
+.admin-panel input[type="number"],
+.admin-panel input[type="text"],
+.admin-panel select {
+  background: rgba(255,255,255,.04);
+  color: var(--panel-text);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 220px;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.admin-panel input::placeholder { color: rgba(255,255,255,.5); }
+.admin-panel input:focus,
+.admin-panel select:focus {
+  border-color: var(--clr-accent-gold, #e9c36a);
+  box-shadow: 0 0 0 3px rgba(233,195,106,.18);
+}
+
+/* Buttons */
+.admin-panel button,
+.admin-menu-btn {
+  --btn-bg: linear-gradient(90deg, #FF4800, #C9A24B);
+  background: var(--btn-bg);
+  color: #0b0b0b;
+  font-weight: 800;
+  letter-spacing: .3px;
+  border: 1px solid rgba(201,162,75,.45);
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+  transition: transform .06s ease, box-shadow .15s ease, filter .15s ease;
+}
+.admin-panel button:hover,
+.admin-menu-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(0,0,0,.45);
+  filter: brightness(1.02);
+}
+.admin-panel button:active,
+.admin-menu-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 18px rgba(0,0,0,.35) inset;
+}
+.admin-panel button[disabled] {
+  opacity: .55;
+  cursor: not-allowed;
+  filter: grayscale(.3);
+}
+
+/* Secondary/utility button (use with className="secondary" if needed) */
+.admin-panel .secondary {
+  background: rgba(255,255,255,.06);
+  color: var(--panel-text);
+  border: 1px solid rgba(255,255,255,.16);
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.12), transparent);
+  margin: 12px 0;
+}
+
+/* Status / messages */
+.admin-panel .status {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid var(--panel-border);
+  color: var(--panel-text);
+}
+
+/* Inline code-like address chips if you use them elsewhere */
+.admin-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255,255,255,.04);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: .9rem;
+}
+
+/* Admin Nav button alignment (if needed) */
+.main-nav .admin-menu-btn {
+  background: rgba(255,255,255,.06);
+  color: var(--panel-text);
+  border: 1px solid rgba(255,255,255,.18);
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+
+/* ───────── Responsiveness ───────── */
+@media (max-width: 720px) {
+  .admin-panel { padding: 16px; }
+  .kv { grid-template-columns: 130px minmax(0, 1fr); }
+  .admin-panel input[type="number"],
+  .admin-panel input[type="text"],
+  .admin-panel select { min-width: 0; width: 100%; }
+  .row { gap: 8px; }
+}
+
+/* ───────── High-contrast focus for a11y ───────── */
+.admin-panel button:focus-visible,
+.admin-panel input:focus-visible,
+.admin-panel select:focus-visible,
+.admin-menu-btn:focus-visible {
+  outline: 2px solid var(--clr-accent-gold, #e9c36a);
+  outline-offset: 2px;
+}
+
 
 /* © 10. COMING SOON ----------------------------------------------------- */
 .coming-soon{ text-align:center; padding:var(--gap-xl) 0 }
@@ -1344,4 +1490,23 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
 
 
 
+/* ───────── Admin Grid Layout ───────── */
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+/* Collapse to one column on mobile, two columns on medium */
+@media (max-width: 1100px) {
+  .admin-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 720px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
