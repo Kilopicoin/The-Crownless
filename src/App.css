@@ -438,7 +438,7 @@ progress,input,button,select,textarea{font-family:inherit; outline:none}
 .presale-card,.presale-summary{
   background:var(--clr-surface); border:1px solid var(--clr-border);
   border-radius:var(--radius-soft); padding:var(--gap-l);
-  width:min(480px,100%); text-align:center;
+   text-align:center;
 }
 .presale-summary h3{ color:var(--clr-accent-gold); margin-bottom:var(--gap-s) }
 .presale-summary progress,.presale-card progress{
@@ -595,6 +595,7 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
   gap: 10px;
   align-items: center;
   margin-top: 14px;
+  margin-bottom: 18px;
 }
 
 /* Inputs */
@@ -893,8 +894,8 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
   box-shadow:0 0 0 1px rgba(255,72,0,.25) inset,0 6px 18px rgba(0,0,0,.55);
   transition:transform .45s cubic-bezier(.22,1.2,.36,1), opacity .45s ease;
 }
-.rm-card.left{ left:3vw; transform-origin:left center }
-.rm-card.right{ right:3vw; transform-origin:right center; text-align:left }
+.rm-card.left{ left:15vw; transform-origin:left center }
+.rm-card.right{ right:15vw; transform-origin:right center; text-align:left }
 .rm-hdr{
   margin:0 0 .5rem; font:700 1rem/1.2 "Cinzel",serif; letter-spacing:.03em;
   color:var(--clr-accent-flame); text-transform:uppercase;
@@ -1182,6 +1183,7 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
 .ref-link-wrap button,
 .nl-row button,
 .presale-card button {
+  font-size: 15px;
   transform-origin: center center;                /* merkezden */
   transition:
     transform 120ms cubic-bezier(.2,.8,.2,1),    /* KISA ve hızlı */
@@ -1250,9 +1252,9 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
   display:grid;
   /* 1. sütunu genişleterek (logo alanı) nav'ı sağa iteriz */
   grid-template-columns:
-    minmax(280px, 340px)  /* Logo + tagline */
-    minmax(170px, 220px)  /* Navigate */
-    minmax(180px, 220px)  /* Community */
+    minmax(780px, 740px)  /* Logo + tagline */
+    minmax(270px, 220px)  /* Navigate */
+    minmax(280px, 220px)  /* Community */
     minmax(220px, 260px)  /* Contact */
     1fr;                  /* Newsletter ya da boşluk */
   /* nav–social arası mesafe de kısalıyor */

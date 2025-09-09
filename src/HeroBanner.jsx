@@ -25,10 +25,6 @@ const HeroBanner = () => (
       </p>
       <div className="hero-cta">
         <a href="/token" className="cta-btn">Join Pre-Sale</a>
-        <button className="secondary-btn" onClick={() => 
-          window.open("https://youtu.be/yourTrailerID","_blank")}>
-          Watch to Trailer
-        </button>
       </div>
     </div>
   </section>

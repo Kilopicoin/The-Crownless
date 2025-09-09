@@ -1,5 +1,5 @@
 /* Footer.jsx */
-import React, { useState } from "react";
+import React from "react";
 import {
   FaTwitter, FaYoutube, FaTelegramPlane,
   FaLinkedin, FaInstagram,
@@ -8,30 +8,7 @@ import {
 
 import stoneBg from "./assets/stone-bg.jpg";   // Sadece logo
 
-/* ── Newsletter mini-form ───────────────────────────── */
-const Newsletter = () => {
-  const [mail, setMail] = useState("");
-  const [msg,  setMsg]  = useState("");
-  const send  = e => {
-    e.preventDefault();
-    if (!mail.match(/.+@.+\..+/)) return setMsg("Enter a valid e-mail 🙂");
-    /* Burada gerçek API çağrısı yapılabilir */
-    setMsg("Thanks! Confirm mail sent."); setMail("");
-  };
-  return (
-    <form className="nl-form" onSubmit={send}>
-      <label htmlFor="nl-mail">Stay in the loop</label>
-      <div className="nl-row">
-        <input
-          id="nl-mail" type="email" placeholder="you@example.com"
-          value={mail} onChange={e=>setMail(e.target.value)} required
-        />
-        <button type="submit">→</button>
-      </div>
-      {msg && <small className="nl-msg">{msg}</small>}
-    </form>
-  );
-};
+
 
 /* ── Ana Footer bileşeni ─────────────────────────────── */
 const Footer = () => (
@@ -59,7 +36,6 @@ const Footer = () => (
         <ul className="f-links">
           <li><a href="/">Home</a></li>
           <li><a href="/token">Token</a></li>
-          <li><a href="/whitepaper">Whitepaper</a></li>
           <li><a href="https://the-crownlesss-organization.gitbook.io/the-crownless/"
                  target="_blank" rel="noopener noreferrer">Docs ↗</a></li>
         </ul>
@@ -84,7 +60,7 @@ const Footer = () => (
   </li>
 
   <li>
-    <a href="https://t.me/TheCrownless"
+    <a href="https://t.me/thecrownlessX"
        target="_blank" rel="noopener noreferrer" aria-label="Telegram">
       <FaTelegramPlane /> Telegram
     </a>
@@ -111,23 +87,17 @@ const Footer = () => (
       <div className="fcol">
         <h4>Contact</h4>
         <address className="contact">
-          <FaEnvelope aria-hidden="true" /> support@thecrownless.io<br/>
-          <span>Epic Games Plaza, 4F<br/>İstanbul / Türkiye</span>
+          <FaEnvelope aria-hidden="true" /> info@thecrownless.com<br/>
         </address>
       </div>
 
-      {/* COL-5 : Newsletter */}
-      <div className="fcol">
-        <Newsletter/>
-      </div>
+   
     </section>
 
     {/* ===  Bottom bar  ================================================ */}
     <section className="foot-bottom">
       <ul className="legal-links">
-        <li><a href="/terms">Terms</a></li>
-        <li><a href="/privacy">Privacy</a></li>
-        <li><a href="/cookies">Cookies</a></li>
+
       </ul>
       <p>© 2025 The Crownless — All rights reserved.</p>
       <a href="#top" className="back-top" aria-label="Back to top"><FaArrowUp/></a>

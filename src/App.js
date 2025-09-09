@@ -211,7 +211,7 @@ function ObeliskRoadmap() {
 }
 
 /* ──────────  TOKEN ECONOMY  ────────── */
-const TOTAL_SUPPLY = 700_000_000; // 700 M CRLS
+const TOTAL_SUPPLY = 1_000_000_000; // 700 M CRLS
 const tokenDist = [
   { name: "Team & Advisors",          pct: 3  },
   { name: "Treasury",                 pct: 6  },
@@ -339,7 +339,6 @@ const FeatureIconsGrid = () => {
 };
 
 /* ──────────────────────────────────────────  Constants ────────────────── */
-const MIN_LOP         = 100;
 const PARTS_COUNT     = 16;
 
 
@@ -365,7 +364,7 @@ const priceForPart = (i) => ROUND_PRICES_USD[i] ?? ROUND_PRICES_USD[ROUND_PRICES
 
 
 
-/* Ağ & Token tanımı (UI amaçlı). Sadece Harmony-LOP/ONE aktif. */
+
 const CHAINS = [
   {
     id: "BSC",
@@ -468,13 +467,13 @@ const LevelsTable = () => (
       </tbody>
     </table>
     <p className="lvl-note">
-      * Level is based on your <strong>cumulative</strong> spending during the pre-sale.
+      * Tier is based on your <strong>cumulative</strong> spending during the pre-sale.
     </p>
   </>
 );
 
 /* ─────────────────────────  Presale Card (EN – UPDATED, compact dropdown)  ───────────────────────── */
-const PresaleCard = ({ presale, provider, account, connectWallet }) => {
+const PresaleCard = ({ presale, provider, account, connectWallet, isConnecting, connectMsg }) => {
  const [showCongrats, setShowCongrats] = useState(false);
  const [lastBuy, setLastBuy] = useState({ amt: "", sym: "" });
   
@@ -501,6 +500,55 @@ const [maintenance, setMaintenance] = useState(false);
 const LISTING_PRICE_USD = 0.03;
 // inside PresaleCard component state:
 const [netUsd, setNetUsd] = useState("0.00");
+
+
+
+
+// inside PresaleCard, above useEffect and buy()
+const refreshSaleState = React.useCallback(async () => {
+  if (!presale) return;
+
+  const isPaused = await presale.paused();
+  const netWei   = await presale.netContributed();
+
+  setNetUsd(
+    Number(formatUnits(netWei)).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  );
+
+  // figure out current round
+  let cum = 0n, idx = 0;
+  while (idx < PARTS_COUNT && (cum + TARGETS[idx]) <= BigInt(netWei)) {
+    cum += TARGETS[idx];
+    idx++;
+  }
+  const endedAll  = idx >= PARTS_COUNT;
+  const inPartWei = endedAll ? 0n : (BigInt(netWei) - cum);
+  const tgtWei    = endedAll ? 1n : TARGETS[idx];
+  const pct       = endedAll ? 100 : Number((inPartWei * 100n) / tgtWei);
+
+  setPaused(isPaused);
+  setEnded(endedAll);
+  setPart(endedAll ? PARTS_COUNT - 1 : idx);
+  setPartPct(pct);
+
+  // maintenance check
+  const onChain = await presale.priceTokensPerStable_1e18();
+  if (!endedAll) {
+    const expected = priceUsdToTokensPerStable1e18(ROUND_PRICES_USD[idx]);
+    setMaintenance(!approxEqPpm(onChain, expected, 5000n));
+  } else {
+    setMaintenance(false);
+  }
+}, [presale]);
+
+
+useEffect(() => {
+  refreshSaleState();
+}, [refreshSaleState]);
+
 
 
   // Convert round USD price => tokensPerStable_1e18 (BigInt) without float drift.
@@ -596,15 +644,24 @@ const approxEqPpm = (a, b, ppm = 5000n) => {
 
 
   
-    if (!isConnected) {
-      await connectWallet();
-      if (!window.ethereum || !provider) return; // user cancelled or no MM
+  if (!isConnected) {
+    const ok = await connectWallet();
+    if (!ok || !window.ethereum || !provider) {
+      setStatus(connectMsg || "Open MetaMask and approve the connection.");
+      return;
     }
+  }
   if (paused) return setStatus("Pre-sale is paused");
   if (maintenance) return setStatus("Maintenance work is being carried out on the site, service will resume very soon.");
   if (!canPay) return setStatus("This network/asset is not active yet.");
 
-  const amtNum = +amount;
+ const amtNum = Number(amount);
+if (!Number.isInteger(amtNum) || amtNum < 100 || amtNum > 100000) {
+  setStatus("Please enter a number between 100 and 100000.");
+  return;
+}
+
+
   if (!Number.isFinite(amtNum) || amtNum <= 0) {
     return setStatus("Enter a valid amount.");
   }
@@ -649,6 +706,7 @@ const approxEqPpm = (a, b, ppm = 5000n) => {
       return setStatus("This asset is not enabled.");
     }
 
+    await refreshSaleState();
    setAmount("");
    setStatus("");
    setLastBuy({ amt: amount, sym: asset.symbol });
@@ -691,13 +749,13 @@ const prevId  = part > 0 ? (part)     : null;           // previous round displa
 const nextId  = part < PARTS_COUNT - 1 ? (part + 2) : null; // next round display id
 
 const refUrl = React.useMemo(
-  () => (myAddr ? `${window.location.origin}/?ref=${myAddr}` : ""),
+  () => (myAddr ? `${window.location.origin}/token/?ref=${myAddr}` : ""),
   [myAddr]
 );
 
   return (
     <section className="presale-card">
-      <header><h1>Crownless Pre-Sale</h1></header>
+      <header><h1>CRLS Pre-Sale</h1></header>
 
       {ended ? (
         <p>Pre-sale complete — thank you!</p>
@@ -780,11 +838,6 @@ const refUrl = React.useMemo(
             </label>
           </div>
 
-          {(!canPay) && (
-            <p className="pay-hint">
-              Only <strong>Harmony</strong> with <strong>LOP</strong> or <strong>ONE</strong> is active for now.
-            </p>
-          )}
 
           <input
             type="text"
@@ -794,13 +847,21 @@ const refUrl = React.useMemo(
             disabled={paused || loading}
           />
           <input
-            type="number"
-            min={MIN_LOP}
-            placeholder={`Amount in ${asset.symbol}`}
-            value={amount}
-            onChange={e=>setAmount(e.target.value)}
-            disabled={paused || loading}
-          />
+  type="text"
+  inputMode="numeric"
+  pattern="[0-9]*"
+  placeholder={`Amount in ${asset.symbol} (min:100 max:100000)`}
+  value={amount}
+  onChange={(e) => {
+    const val = e.target.value;
+    // allow only digits while typing; up to 6 digits (100000)
+    if (/^\d{0,6}$/.test(val)) setAmount(val);
+  }}
+
+  disabled={paused || loading}
+/>
+
+
 
           {(() => {
             // Decide label and click behavior
@@ -813,13 +874,19 @@ const refUrl = React.useMemo(
                 </button>
               );
             }
-            if (!isConnected) {
-              return (
-                <button onClick={connectWallet}>
-                  Connect MetaMask
-                </button>
-              );
-            }
+ if (!isConnected) {
+   return (
+     <>
+       <button onClick={async () => {
+         const ok = await connectWallet();
+         if (!ok) setStatus(connectMsg || "Open MetaMask to continue.");
+       }} disabled={isConnecting}>
+         {isConnecting ? "Waiting in MetaMask…" : "Connect MetaMask"}
+       </button>
+       {connectMsg && <p className="status" style={{ marginTop: 8 }}>{connectMsg}</p>}
+     </>
+   );
+ }
             // Connected: normal contribute flow
             return (
               <button
@@ -839,6 +906,15 @@ const refUrl = React.useMemo(
     Maintenance work is being carried out on the site, service will resume very soon.
   </p>
 )}
+
+
+{myAddr && (
+  <p className="wallet-line" style={{ marginTop: 12 }}>
+    <strong>Connected Wallet:</strong><br/>
+    <code>{myAddr}</code>
+  </p>
+)}
+
 
       {myAddr && (
   <p className="ref-line">
@@ -973,23 +1049,24 @@ const refUrl = React.useMemo(
 
 
 /* ─────────────────────────  Token Page  ──────────────────────────────── */
-const TokenPage = ({ presale, provider, account, connectWallet }) => (
+const TokenPage = ({ presale, provider, account, connectWallet, isConnecting, connectMsg }) => (
   <div className="home-wrap token-layout">
     <aside className="info-column">
-      <h1 className="game-title">Token Pre-Sale</h1>
+      <h1 className="game-title">The Crownless</h1>
       <p className="intro">
-        Secure your spot in the economy of The Crownless. Early supporters
-        unlock exclusive NFTs and the best CRLS price tiers.
+        Support the development of the project, reserve your spot, take advantage of the good price, and get special NFT rights.
       </p>
       <LevelsTable />
     </aside>
     <div className="card-column">
-      <PresaleCard
-        presale={presale}
-        provider={provider}
-        account={account}
-        connectWallet={connectWallet}
-      />
+  <PresaleCard
+    presale={presale}
+    provider={provider}
+    account={account}
+    connectWallet={connectWallet}
+    isConnecting={isConnecting}
+    connectMsg={connectMsg}
+  />
     </div>
   </div>
 );
@@ -1004,6 +1081,21 @@ const ERC20_ABI_MIN = [
 const AdminPanel = ({ presale, provider, account }) => {
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
+
+  const [withdrawCount, setWithdrawCount] = useState(0);
+const [withdrawTotalUsdWei, setWithdrawTotalUsdWei] = useState(0n);
+
+
+  // after existing useState hooks in AdminPanel:
+const [globalLen, setGlobalLen] = useState(0);
+
+// slice UI state
+const [sliceStart, setSliceStart] = useState("");
+const [sliceEnd, setSliceEnd] = useState("");
+const [sliceRows, setSliceRows] = useState([]); // array of structs { user, token, amount, priceAtContribution }
+
+// near your other slice UI state
+const [sliceBase, setSliceBase] = useState(0); // global start index of current slice
 
   // status panel fields
   const [owner, setOwner] = useState("");
@@ -1025,6 +1117,39 @@ const AdminPanel = ({ presale, provider, account }) => {
   const lc = (x) => (x || "").toLowerCase();
   const isOwner = account && lc(account) === lc(owner);
   const isSwitcher = account && lc(account) === lc(switcher);
+
+  const [wdRows, setWdRows] = useState([]);
+
+
+const actOwnerListWithdrawals = async () => {
+  try {
+    if (!isOwner) return setStatusMsg("Only owner can list withdrawals.");
+    if (!presale) return;
+    setLoading(true);
+    setStatusMsg("Fetching all withdrawals…");
+    const rows = await presale.getAllWithdrawalsUnsafe(); // UNSAFE full dump
+    // normalize to plain objects (ethers v6 structs are fine, but we map for clarity)
+    setWdRows(rows.map(r => ({
+      timestamp: Number(r.timestamp),
+      token: r.token,
+      amount: r.amount // BigInt
+    })));
+    setStatusMsg(`✅ Loaded ${rows.length} withdrawal records`);
+  } catch (e) {
+    setStatusMsg(e?.shortMessage ?? e?.message ?? "Fetch failed");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+  const addrEq = (a, b) => (a || "").toLowerCase() === (b || "").toLowerCase();
+const tokenLabel = (addr) =>
+  addrEq(addr, usdtAddr) ? usdtSym :
+  addrEq(addr, usdcAddr) ? usdcSym :
+  `${addr.slice(0,6)}…${addr.slice(-4)}`;
+
 
   const fmt = (wei) =>
     Number(formatUnits(wei)).toLocaleString(undefined, {
@@ -1054,24 +1179,23 @@ const AdminPanel = ({ presale, provider, account }) => {
       setLoading(true);
 
       const [
-        _owner,
-        _switcher,
-        _paused,
-        _switch,
-        _price,
-        _net,
-        _usdt,
-        _usdc
-      ] = await Promise.all([
-        presale.owner(),
-        presale.switcher(),
-        presale.paused(),
-        presale.switchStatus(),
-        presale.priceTokensPerStable_1e18(),
-        presale.netContributed(),
-        presale.USDT(),
-        presale.USDC()
-      ]);
+  _owner, _switcher, _paused, _switch, _price, _net, _usdt, _usdc,
+  _glen,
+  _wlen,                            // 👈 NEW
+  _wtotal                           // 👈 NEW
+] = await Promise.all([
+  presale.owner(),
+  presale.switcher(),
+  presale.paused(),
+  presale.switchStatus(),
+  presale.priceTokensPerStable_1e18(),
+  presale.netContributed(),
+  presale.USDT(),
+  presale.USDC(),
+  presale.getGlobalContributionsLength(),
+  presale.getWithdrawalsLength(),         // 👈
+  presale.totalWithdrawnUsd_1e18()        // 👈
+]);
 
       setOwner(_owner);
       setSwitcher(_switcher);
@@ -1081,6 +1205,9 @@ const AdminPanel = ({ presale, provider, account }) => {
       setNetContribWei(BigInt(_net));
       setUsdtAddr(_usdt);
       setUsdcAddr(_usdc);
+      setGlobalLen(Number(_glen));
+      setWithdrawCount(Number(_wlen));
+setWithdrawTotalUsdWei(BigInt(_wtotal));
 
       // read token balances (assume 18 decimals on BSC as in your app)
       if (provider) {
@@ -1089,12 +1216,10 @@ const AdminPanel = ({ presale, provider, account }) => {
         const usdc = new Contract(_usdc, ERC20_ABI_MIN, r);
 
         // try to pick symbols/decimals from chain (fallbacks if fail)
-        let [usdtDec, usdcDec, usdtSymbol, usdcSymbol, balUsdt, balUsdc] =
+        let [usdtDec, usdcDec, balUsdt, balUsdc] =
           await Promise.allSettled([
             usdt.decimals(),
             usdc.decimals(),
-            usdt.symbol(),
-            usdc.symbol(),
             usdt.balanceOf(presale.target ?? presale.address),
             usdc.balanceOf(presale.target ?? presale.address)
           ]);
@@ -1104,8 +1229,8 @@ const AdminPanel = ({ presale, provider, account }) => {
         const decUSDC =
           usdcDec.status === "fulfilled" ? usdcDec.value : 18;
 
-        setUsdtSym(usdtSymbol.status === "fulfilled" ? usdtSymbol.value : "USDT");
-        setUsdcSym(usdcSymbol.status === "fulfilled" ? usdcSymbol.value : "USDC");
+        setUsdtSym("USDT");
+        setUsdcSym("USDC");
         setUsdtBal(
           balUsdt.status === "fulfilled"
             ? Number(formatUnits(balUsdt.value, decUSDT)).toLocaleString()
@@ -1136,6 +1261,38 @@ const AdminPanel = ({ presale, provider, account }) => {
     if (!provider) throw new Error("Connect wallet first");
     return await provider.getSigner();
   };
+
+
+  const actOwnerFetchSlice = async () => {
+  try {
+    if (!isOwner) return setStatusMsg("Only owner can fetch.");
+    const s = parseInt(sliceStart, 10);
+    const e = parseInt(sliceEnd, 10);
+    if (!Number.isInteger(s) || !Number.isInteger(e) || s < 0 || e <= s) {
+      return setStatusMsg("Enter a valid [start, end) range.");
+    }
+    if (!presale) return;
+
+    setLoading(true);
+    setStatusMsg("Fetching slice…");
+    const rows = await presale.getGlobalContributionsSlice(s, e);
+
+    // rows[i] = { user, token, amount, priceAtContribution }
+    setSliceRows(rows.map(r => ({
+      user: r.user,
+      token: r.token,
+      amount: r.amount,                   // BigInt (ethers v6)
+      priceAtContribution: r.priceAtContribution,
+    })));
+    setSliceBase(s); 
+    setStatusMsg(`✅ Fetched ${rows.length} records`);
+  } catch (e) {
+    setStatusMsg(e?.shortMessage ?? e?.message ?? "Fetch failed");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const actOwnerPause = async () => {
     try {
@@ -1243,16 +1400,24 @@ const AdminPanel = ({ presale, provider, account }) => {
         </div>
 
         <div className="kv"><div>Paused</div><div>{paused ? "Yes" : "No"}</div></div>
-        <div className="kv"><div>Switch</div><div>{switchStatus ? "ON" : "OFF"}</div></div>
+        <div className="kv"><div>Switch</div><div>{switchStatus ? "ON" : "OFF"} (Should stay OFF) </div></div>
         <PriceRow />
         <div className="kv"><div>Net Contributed</div><div>${fmt(netContribWei)}</div></div>
+        <div className="kv"><div>Global Contributions</div><div>{globalLen}</div></div>
+
+<div className="kv"><div>Withdrawals</div><div>{withdrawCount}</div></div>
+<div className="kv">
+  <div>Total Withdrawn (USD)</div>
+  <div>${Number(formatUnits(withdrawTotalUsdWei)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+</div>
+
 
         <div className="divider" />
 
         <div className="kv"><div>USDT Address</div><div>{usdtAddr || "—"}</div></div>
         <div className="kv"><div>USDC Address</div><div>{usdcAddr || "—"}</div></div>
-        <div className="kv"><div>{usdtSym} Balance</div><div>{usdtBal}</div></div>
-        <div className="kv"><div>{usdcSym} Balance</div><div>{usdcBal}</div></div>
+        <div className="kv"><div>USDT Balance</div><div>{usdtBal}</div></div>
+        <div className="kv"><div>USDC Balance</div><div>{usdcBal}</div></div>
 
         <div className="row">
           <button onClick={refresh} disabled={loading}>Refresh</button>
@@ -1299,6 +1464,173 @@ const AdminPanel = ({ presale, provider, account }) => {
             Withdraw All (USDT & USDC)
           </button>
         </div>
+
+<div className="row">
+  Round Prices -->>
+        <textarea
+  readOnly
+  className="rounds-pre"
+  rows={ROUND_PRICES_USD.length + 1}
+  value={ROUND_PRICES_USD.map((p, i) => `${i + 1}\t${p.toFixed(4)}`).join("\n")}
+/>
+</div>
+
+
+{/* ---- links under the round prices ---- */}
+<div className="row" style={{ display: "grid", gap: 6 }}>
+  <div><b>USDT</b></div>
+  <div>
+    explorer:&nbsp;
+    <a
+      href="https://bscscan.com/token/0x55d398326f99059ff775485246999027b3197955"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      https://bscscan.com/token/0x55d398326f99059ff775485246999027b3197955
+    </a>
+  </div>
+  <div>
+    coingecko:&nbsp;
+    <a
+      href="https://www.coingecko.com/en/coins/binance-bridged-usdt-bnb-smart-chain"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      https://www.coingecko.com/en/coins/binance-bridged-usdt-bnb-smart-chain
+    </a>
+  </div>
+
+  <div style={{ marginTop: 8 }}><b>USDC</b></div>
+  <div>
+    explorer:&nbsp;
+    <a
+      href="https://bscscan.com/token/0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      https://bscscan.com/token/0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d
+    </a>
+  </div>
+  <div>
+    coingecko:&nbsp;
+    <a
+      href="https://www.coingecko.com/en/coins/binance-bridged-usdc-bnb-smart-chain"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      https://www.coingecko.com/en/coins/binance-bridged-usdc-bnb-smart-chain
+    </a>
+  </div>
+</div>
+
+<div className="divider" />
+
+<h3 style={{marginTop: 0}}>Global Contributions</h3>
+<p style={{opacity:.8, marginTop: 0}}>
+  First Record id is 0 but the count starts with 1.
+</p>
+
+<div className="row" style={{gap: 8, alignItems: "center", flexWrap: "wrap"}}>
+  <input
+    type="number"
+    placeholder="start (inclusive)"
+    value={sliceStart}
+    onChange={(e) => setSliceStart(e.target.value)}
+    disabled={!isOwner || loading}
+    style={{minWidth: 160}}
+  />
+  <input
+    type="number"
+    placeholder="end (exclusive)"
+    value={sliceEnd}
+    onChange={(e) => setSliceEnd(e.target.value)}
+    disabled={!isOwner || loading}
+    style={{minWidth: 160}}
+  />
+  <button onClick={actOwnerFetchSlice} disabled={!isOwner || loading}>
+    Fetch Slice
+  </button>
+</div>
+
+{/* Results table */}
+{sliceRows.length > 0 && (
+  <div style={{overflowX: "auto", marginTop: 10}}>
+    {/* Optional helper text */}
+    <p style={{opacity:.8, margin: "0 0 6px"}}>
+      Showing <b>{sliceBase + 1}</b>–<b>{sliceBase + sliceRows.length}</b> of <b>{globalLen}</b>
+    </p>
+
+    <table className="level-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>User</th>
+          <th>Token</th>
+          <th>Amount</th>
+          <th>Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sliceRows.map((r, i) => {
+          const globalIndex = sliceBase + i; // 0-based global
+          const displayNum  = globalIndex + 1; // 1-based for humans
+
+          const amt = Number(formatUnits(r.amount, 18));
+          const usd = usdPerToken(r.priceAtContribution);
+
+          return (
+            <tr key={globalIndex}>
+              <td>{displayNum}</td> {/* 👈 now 21..50 for a 20..50 slice */}
+              <td title={r.user}>{r.user}</td>
+              <td title={r.token}>{tokenLabel(r.token)}</td>
+              <td>{amt.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td>
+              <td><span title="USD per token">${usd}</span></td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+)}
+
+<div className="row">
+  <button onClick={actOwnerListWithdrawals} disabled={!isOwner || loading}>
+    List All Withdrawals (unsafe)
+  </button>
+</div>
+
+{wdRows.length > 0 && (
+  <div style={{ overflowX: "auto", marginTop: 10 }}>
+    <p style={{ opacity: .8, margin: "0 0 6px" }}>
+      Total rows: <b>{wdRows.length}</b>
+    </p>
+    <table className="level-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Time (UTC)</th>
+          <th>Token</th>
+          <th>Amount (USD)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {wdRows.map((r, i) => {
+          const ts = new Date(r.timestamp * 1000).toISOString().replace("T"," ").replace(".000Z"," UTC");
+          const amt = Number(formatUnits(r.amount, 18)); // assumes 18d
+          return (
+            <tr key={i}>
+              <td>{i + 1}</td>
+              <td>{ts}</td>
+              <td>{tokenLabel(r.token)}</td>
+              <td>{amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+)}
+
       </section>
 
       <section className="admin-panel">
@@ -1329,22 +1661,48 @@ function App() {
   const [account, setAccount] = useState(null);
 const [ownerAddr, setOwnerAddr]       = useState(null);
 const [switcherAddr, setSwitcherAddr] = useState(null);
-   
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectMsg, setConnectMsg] = useState(""); // optional: surface to children if you want
 
 
   const connectWallet = async () => {
     if (!window.ethereum || !window.ethereum.isMetaMask) {
       window.open("https://metamask.io/download", "_blank", "noopener");
-      return;
+      return false;
     }
-    const accts = await window.ethereum.request({ method: "eth_requestAccounts" });
-    const selected = accts?.[0] ?? null;
-    setAccount(selected);
-    const p = new BrowserProvider(window.ethereum);
-    setProvider(p);
-    recomputeIsAdmin(selected, ownerAddr, switcherAddr);
-    // Optional: upgrade presale to signer-backed after connect, otherwise keep read-only
-    // setPresale(await getSignerContract());
+    if (isConnecting) {
+      setConnectMsg("A connection request is already open in MetaMask.");
+      return false;
+    }
+    setIsConnecting(true);
+    setConnectMsg("");
+    try {
+      const accts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      const selected = accts?.[0] ?? null;
+      if (!selected) {
+        setConnectMsg("No account selected.");
+        return false;
+      }
+      setAccount(selected);
+      const p = new BrowserProvider(window.ethereum);
+      setProvider(p);
+      recomputeIsAdmin(selected, ownerAddr, switcherAddr);
+      return true;
+    } catch (e) {
+      // EIP-1193 / MetaMask codes:
+      // 4001 = user rejected; -32002 = request already pending
+      if (e && typeof e === "object") {
+        if (e.code === 4001) setConnectMsg("Connection request was rejected.");
+        else if (e.code === -32002) setConnectMsg("A connection request is already pending. Please open MetaMask to continue.");
+        else setConnectMsg(e.message || "Failed to connect.");
+      } else {
+        setConnectMsg("Failed to connect.");
+      }
+      return false;
+    } finally {
+      // we still clear the flag so the button can be pressed again if the user closed MM window.
+      setIsConnecting(false);
+    }
   };
 
 const recomputeIsAdmin = (acct, ownerA, switcherA) => {
@@ -1442,7 +1800,19 @@ const recomputeIsAdmin = (acct, ownerA, switcherA) => {
       <NavBar isAdmin={isAdmin} />
       <Routes>
         <Route path="/"           element={<LandingHome presale={presale} />} />
-        <Route path="/token"      element={<TokenPage  presale={presale} provider={provider} account={account} connectWallet={connectWallet} />} />
+         <Route
+   path="/token"
+   element={
+     <TokenPage
+       presale={presale}
+       provider={provider}
+       account={account}
+       connectWallet={connectWallet}
+       isConnecting={isConnecting}
+       connectMsg={connectMsg}
+     />
+   }
+ />
  {isAdmin && (
    <Route
      path="/admin"
