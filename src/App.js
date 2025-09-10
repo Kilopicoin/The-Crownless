@@ -347,7 +347,7 @@ const ROUND_PRICES_USD = [
   0.0075, 0.0080, 0.0085, 0.0090,
   0.0095, 0.0100, 0.0105, 0.0110,
   0.0115, 0.0120, 0.0125, 0.0130,
-  0.0135, 0.0140, 0.0145, 0.0150,
+  0.0135, 0.0140, 0.0145, 0.0150, 30
 ];
 
 
@@ -495,6 +495,11 @@ const isConnected = !!account; // we set this when user connects
   const [loading, setLoading]         = useState(false);
   const [refAddr, setRefAddr]         = useState(() => new URLSearchParams(loc.search).get("ref") ?? "");
   const [myAddr, setMyAddr]           = useState("");
+const [lockedRef, setLockedRef]     = useState(ZERO_ADDRESS); // on-chain, if any
+const hasLockedRef = lockedRef && lockedRef.toLowerCase() !== ZERO_ADDRESS.toLowerCase();
+
+
+
 
 const [maintenance, setMaintenance] = useState(false);
 const LISTING_PRICE_USD = 0.03;
@@ -577,6 +582,24 @@ const approxEqPpm = (a, b, ppm = 5000n) => {
   useEffect(() => {
     setMyAddr(account ?? "");
   }, [account]);
+
+
+// Load already-locked referrer (if any)
+useEffect(() => {
+  (async () => {
+    try {
+      if (!presale || !account) {
+        setLockedRef(ZERO_ADDRESS);
+        return;
+      }
+      const r = await presale.referrerOf(account);
+      setLockedRef((r || ZERO_ADDRESS));
+    } catch {
+      setLockedRef(ZERO_ADDRESS);
+    }
+  })();
+}, [presale, account]);
+
 
 
     useEffect(() => {
@@ -666,6 +689,15 @@ if (!Number.isInteger(amtNum) || amtNum < 100 || amtNum > 100000) {
     return setStatus("Enter a valid amount.");
   }
 
+
+    const isHexAddr = (a) => /^0x[a-fA-F0-9]{40}$/.test(a ?? "");
+    const me = (myAddr || account || "").toLowerCase();
+    // First-time only: block self-ref in UI
+    if (!hasLockedRef && isHexAddr(refAddr) && refAddr.toLowerCase() === me) {
+      setStatus("Can not enter self address as the referrer");
+      return;
+    }
+
   setLoading(true);
   setStatus("Awaiting wallet confirmation…");
 
@@ -675,9 +707,12 @@ if (!Number.isInteger(amtNum) || amtNum < 100 || amtNum > 100000) {
     // use your configured constant
     const spender = contractAddress;
 
-    // validate referral (must be 42 chars long and hex)
-    const ref =
-      /^0x[a-fA-F0-9]{40}$/.test(refAddr ?? "") ? refAddr : ZERO_ADDRESS;
+    // Referral param:
+    // - if a referrer is already locked on-chain, pass ZERO_ADDRESS (skip)
+    // - else, use a valid hex input (or ZERO)
+    const ref = hasLockedRef
+      ? ZERO_ADDRESS
+      : (isHexAddr(refAddr) ? refAddr : ZERO_ADDRESS);
 
     // amount (assume 18 decimals for USDT/USDC on BSC)
     const amtWei = parseUnits(amount, 18);
@@ -706,7 +741,14 @@ if (!Number.isInteger(amtNum) || amtNum < 100 || amtNum > 100000) {
       return setStatus("This asset is not enabled.");
     }
 
+    // Refresh UI state, including (possibly newly) locked referrer
     await refreshSaleState();
+    try {
+      if (presale && (myAddr || account)) {
+        const rNow = await presale.referrerOf(myAddr || account);
+        setLockedRef(rNow || ZERO_ADDRESS);
+      }
+    } catch {}
    setAmount("");
    setStatus("");
    setLastBuy({ amt: amount, sym: asset.symbol });
@@ -758,7 +800,7 @@ const refUrl = React.useMemo(
       <header><h1>CRLS Pre-Sale</h1></header>
 
       {ended ? (
-        <p>Pre-sale complete — thank you!</p>
+        <p>Pre-sale has been completed — Thank you!</p>
       ) : paused ? (
         <p className="paused-banner">⚠️ Maintenance work is being carried out on the site, service will resume very soon. </p>
       ) : (
@@ -839,24 +881,36 @@ const refUrl = React.useMemo(
           </div>
 
 
-          <input
-            type="text"
-            placeholder="Referral address (optional)"
-            value={refAddr}
-            onChange={e=>setRefAddr(e.target.value)}
-            disabled={paused || loading}
-          />
+          {/* Referral UI */}
+          {hasLockedRef ? (
+            <div className="ref-line" style={{marginBottom: 8}}>
+              <strong>Referrer (locked):</strong><br/>
+              <code title={lockedRef}>{lockedRef}</code>
+              <div style={{opacity:.8, fontSize:".85rem", marginTop:4}}>
+                You can’t change your referrer after the first contribution.
+              </div>
+            </div>
+          ) : (
+            <input
+              type="text"
+              placeholder="Referral address (optional)"
+              value={refAddr}
+              onChange={(e)=>setRefAddr(e.target.value)}
+              disabled={paused || loading}
+            />
+          )}
           <input
   type="text"
   inputMode="numeric"
   pattern="[0-9]*"
   placeholder={`Amount in ${asset.symbol} (min:100 max:100000)`}
   value={amount}
-  onChange={(e) => {
-    const val = e.target.value;
-    // allow only digits while typing; up to 6 digits (100000)
-    if (/^\d{0,6}$/.test(val)) setAmount(val);
-  }}
+onChange={(e) => {
+  const val = e.target.value;
+  // allow only digits of any length
+  if (/^\d*$/.test(val)) setAmount(val);
+}}
+
 
   disabled={paused || loading}
 />
@@ -1028,6 +1082,30 @@ const refUrl = React.useMemo(
            <p className="cg-sub">
              Thank you! You contributed <strong>{lastBuy.amt} {lastBuy.sym}</strong>.
            </p>
+
+           <p style={{ marginTop: "1rem", fontSize: "0.95rem" }}>
+  Please follow the social accounts to support the visibility of the project
+  in its early phases:
+</p>
+<div className="cg-row" style={{ marginTop: "0.5rem" }}>
+  <a href="https://x.com/thecrownlessX" target="_blank" rel="noopener noreferrer" className="cg-btn secondary">
+    Twitter
+  </a>
+  <a href="https://www.youtube.com/@thecrownlessX" target="_blank" rel="noopener noreferrer" className="cg-btn secondary">
+    YouTube
+  </a>
+  <a href="https://t.me/thecrownlessX" target="_blank" rel="noopener noreferrer" className="cg-btn secondary">
+    Telegram
+  </a>
+  <a href="https://www.linkedin.com/company/the-crownless/posts/?feedView=all" target="_blank" rel="noopener noreferrer" className="cg-btn secondary">
+    LinkedIn
+  </a>
+  <a href="https://www.instagram.com/thecrownlessx/" target="_blank" rel="noopener noreferrer" className="cg-btn secondary">
+    Instagram
+  </a>
+</div>
+
+
            <div className="cg-row">
              <button className="cg-btn" onClick={() => setShowCongrats(false)}>
                Continue
@@ -1466,7 +1544,7 @@ setWithdrawTotalUsdWei(BigInt(_wtotal));
         </div>
 
 <div className="row">
-  Round Prices -->>
+  Round Prices →→
         <textarea
   readOnly
   className="rounds-pre"

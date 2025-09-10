@@ -2,7 +2,7 @@
 import { BrowserProvider, Contract, JsonRpcProvider } from 'ethers';
 import contractABI from './contract/SupplyChainData.json';
 
-export const contractAddress = '0x7ad56F76eeb62BfB06Ac786d99E6b0DD89128d2e';
+export const contractAddress = '0xdb0C44B771B4D3b78d40941345dE263E98c23e5b';
 export const RPC = 'http://127.0.0.1:8545';
 
 export const getContract = () => {
