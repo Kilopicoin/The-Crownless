@@ -31,7 +31,7 @@
 
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{
-  scroll-behavior:smooth; background:var(--clr-bg-dark); color:var(--clr-text-main);
+  scroll-behavior:smooth; background: #131314 !important; color: white;
   font-family:var(--ff-body); line-height:1.6; font-size:16px;
 }
 progress,input,button,select,textarea{font-family:inherit; outline:none}
@@ -76,7 +76,7 @@ progress,input,button,select,textarea{font-family:inherit; outline:none}
   list-style:none; gap:clamp(.4rem,1.8vw,.9rem);
 }
 .main-nav a,.admin-menu-btn{
-  text-decoration:none; color:var(--clr-text-main);
+  text-decoration:none; color:white;
   padding:.55rem .9rem; border-radius:12px;
   transition:
     background var(--dur-fast) ease,
@@ -409,7 +409,6 @@ progress,input,button,select,textarea{font-family:inherit; outline:none}
 .lvl-title{ margin-top:var(--gap-xl); text-align:center }
 .level-table{ width:100%; border-collapse:collapse; margin-block:var(--gap-m) }
 .level-table th,.level-table td{ border:1px solid var(--clr-border); padding:var(--gap-xs) var(--gap-s); text-align:center }
-.level-table th{ background:var(--clr-border) }
 .lvl-note{ text-align:center; font-size:.85rem; color:var(--clr-text-sub) }
 .level-table{ max-width:none }
 @media(min-width:900px){ .level-table{ width:100%; font-size:.95rem } }
@@ -436,7 +435,7 @@ progress,input,button,select,textarea{font-family:inherit; outline:none}
 
 /* Card & progress */
 .presale-card,.presale-summary{
-  background:var(--clr-surface); border:1px solid var(--clr-border);
+   border:1px solid var(--clr-border);
   border-radius:var(--radius-soft); padding:var(--gap-l);
    text-align:center;
 }
@@ -732,7 +731,7 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
 
 .foot-grid{
   display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:var(--gap-l); padding:var(--gap-xl) var(--gap-m);
+  gap:var(--gap-l); padding:var(--gap-xl) var(--gap-m); background: #131314 !important; color: white;
 }
 .fcol{ display:flex; flex-direction:column; gap:var(--gap-s) }
 .logo-col .f-logo{
@@ -758,12 +757,12 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
 
 
 .f-links,.f-social,.legal-links{ list-style:none; display:flex; flex-direction:column; gap:var(--gap-xs) }
-.f-links a,.legal-links a{ color:var(--clr-text-main); text-decoration:none; transition:color var(--dur-fast) }
+.f-links a,.legal-links a{ color:white; text-decoration:none; transition:color var(--dur-fast) }
 .f-links a:hover,.legal-links a:hover{ color:var(--clr-accent-flame) }
 
 .f-social a{
   display:flex; align-items:center; gap:.45rem; font-size:.85rem;
-  text-decoration:none; color:var(--clr-text-main); transition:color var(--dur-fast);
+  text-decoration:none; color:white; transition:color var(--dur-fast);
 }
 .f-social a svg{ font-size:1.2rem }
 .f-social a:hover{ color:var(--clr-accent-flame) }
@@ -784,10 +783,11 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
 .foot-bottom{
   border-top:1px solid var(--clr-border); padding:var(--gap-s) var(--gap-m);
   display:flex; flex-wrap:wrap; gap:var(--gap-s); align-items:center; justify-content:space-between;
+  background: #131314 !important; color: white;
 }
 .legal-links{ flex-direction:row; gap:var(--gap-m) }
 .back-top{
-  color:var(--clr-text-main); font-size:1.1rem; padding:var(--gap-xs);
+  color:white; font-size:1.1rem; padding:var(--gap-xs);
   border:1px solid var(--clr-border); border-radius:var(--radius-soft);
   transition:background var(--dur-fast);
 }
@@ -1367,7 +1367,7 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: var(--clr-surface);
+  color: white;
   border: 1px solid var(--clr-border);
   border-radius: 10px;
   padding: 10px;
@@ -1376,14 +1376,14 @@ progress::-webkit-progress-value{ background:var(--clr-accent-flame); border-rad
 .select-group .pay-hdr {
   margin: 0;
   font-size: 0.9rem;
-  color: var(--clr-accent-gold);
+  color: white;
   letter-spacing: .2px;
 }
 
 .select {
   appearance: none;
   background: #101010;
-  color: var(--clr-text-main);
+  color: white;
   border: 1px solid var(--clr-border);
   border-radius: 8px;
   padding: 8px 10px;
