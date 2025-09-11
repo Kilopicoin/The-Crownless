@@ -2,8 +2,8 @@
 import { BrowserProvider, Contract, JsonRpcProvider } from 'ethers';
 import contractABI from './contract/usdtbnb.json';
 
-export const usdtbnbcontractAddress = '0x4F88f3aEBb80E77Cf54B2De854DAfe94C01e4B33';
-const RPC = 'http://127.0.0.1:8545';
+export const usdtbnbcontractAddress = '0x55d398326f99059fF775485246999027B3197955';
+const RPC = 'https://bsc-dataseed.binance.org';
 
 export const getusdtbnbContract = () => {
   const provider = new JsonRpcProvider(RPC);

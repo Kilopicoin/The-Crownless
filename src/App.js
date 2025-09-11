@@ -6,7 +6,7 @@ import {
   useNavigate, useLocation,
 } from "react-router-dom";
 import { BrowserProvider, formatUnits, parseUnits, Contract } from "ethers";
-import { getContract, getSignerContract, contractAddress } from "./contractbnb";
+import { getContract, getSignerContract, contractAddress, ensureCorrectNetwork, CHAIN } from "./contractbnb";
 import { getusdtbnbSignerContract } from "./usdtcontractbnb";
 import { getusdcbnbSignerContract } from "./usdccontractbnb";
 import "./App.css";
@@ -381,14 +381,18 @@ const CHAINS = [
 /* ─────────────────────────  Reusable UI  ──────────────────────────────── */
 
 
-const NavBar = ({ isAdmin }) => {
+const NavBar = ({ isAdmin, isConnected }) => {
   const nav = useNavigate();
   return (
     <nav className="main-nav">
       <ul>
         <li><Link to="/">Home</Link></li>
         <li><Link to="/token">Token</Link></li>
-        <li><Link to="/profile">Profile</Link></li>
+
+        {isConnected && (
+          <li><Link to="/profile">Profile</Link></li>
+        )}
+
         {isAdmin && (
           <li>
             <button className="admin-menu-btn" onClick={() => nav("/admin")}>
@@ -396,19 +400,17 @@ const NavBar = ({ isAdmin }) => {
             </button>
           </li>
         )}
-         <li>
-   <a
-     href={WHITEPAPER_URL}
-     target="_blank"
-     rel="noopener noreferrer"
-   >
-     Whitepaper
-   </a>
- </li>
+
+        <li>
+          <a href={WHITEPAPER_URL} target="_blank" rel="noopener noreferrer">
+            Whitepaper
+          </a>
+        </li>
       </ul>
     </nav>
   );
 };
+
 
 /* ========= LANDING PAGE ========= */
 const LandingHome = ({ presale }) => (
@@ -532,7 +534,11 @@ const refreshSaleState = React.useCallback(async () => {
   const endedAll  = idx >= PARTS_COUNT;
   const inPartWei = endedAll ? 0n : (BigInt(netWei) - cum);
   const tgtWei    = endedAll ? 1n : TARGETS[idx];
-  const pct       = endedAll ? 100 : Number((inPartWei * 100n) / tgtWei);
+  // percent with 2 decimals, done in integer math: 0..10000 => 0.00%..100.00%
+const pctHundredths = endedAll ? 10000 : Number((inPartWei * 10000n) / tgtWei);
+// store as a Number with 2-decimals precision (e.g. 12.34)
+const pct = pctHundredths / 100;
+
 
   setPaused(isPaused);
   setEnded(endedAll);
@@ -629,7 +635,11 @@ useEffect(() => {
     const inPartWei = endedAll ? 0n : (BigInt(netWei) - cum);
     const tgtWei    = endedAll ? 1n : TARGETS[idx];
 
-    const pct       = endedAll ? 100 : Number((inPartWei * 100n) / tgtWei);
+    // percent with 2 decimals, done in integer math: 0..10000 => 0.00%..100.00%
+const pctHundredths = endedAll ? 10000 : Number((inPartWei * 10000n) / tgtWei);
+// store as a Number with 2-decimals precision (e.g. 12.34)
+const pct = pctHundredths / 100;
+
 
     setPaused(isPaused);
     setEnded(endedAll);
@@ -786,7 +796,8 @@ if (!Number.isInteger(amtNum) || amtNum < 100 || amtNum > 100000) {
     boxShadow: "0 10px 28px rgba(0,0,0,.55)"
   };
 
-  const pct     = Math.max(0, Math.min(100, Math.round(partPct)));
+  const pct = Math.max(0, Math.min(100, Number(partPct))); // partPct is already 2-decimal
+
 const prevId  = part > 0 ? (part)     : null;           // previous round display id
 const nextId  = part < PARTS_COUNT - 1 ? (part + 2) : null; // next round display id
 
@@ -816,24 +827,29 @@ const refUrl = React.useMemo(
   <span className="price-line__right"><strong>Listing Price:</strong> ${LISTING_PRICE_USD.toFixed(2)}</span>
 </div>
 
-          <div className="round-progress" role="progressbar"
-     aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}
-     aria-label={`Round progress ${pct}%. ${prevId ? `Previous round ${prevId}. ` : ""}${nextId ? `Next round ${nextId}.` : ""}`}>
+          <div
+  className="round-progress"
+  role="progressbar"
+  aria-valuenow={pct.toFixed(2)}
+  aria-valuemin={0}
+  aria-valuemax={100}
+  aria-label={`Round progress ${pct.toFixed(2)}%. ${prevId ? `Previous round ${prevId}. ` : ""}${nextId ? `Next round ${nextId}.` : ""}`}
+>
   <progress value={pct} max="100" />
 
-  {/* LEFT: previous round id */}
   <span className="round-progress__edge round-progress__edge--left">
     ← Round {prevId ?? "0"}
   </span>
 
-  {/* CENTER: percent */}
-  <span className="round-progress__label">Round {prevId+1}: {pct}%</span>
+  <span className="round-progress__label">
+    Round {prevId + 1}: {pct.toFixed(2)}%
+  </span>
 
-  {/* RIGHT: next round id */}
   <span className="round-progress__edge round-progress__edge--right">
     Round {nextId ?? "End"} →
   </span>
 </div>
+
          
     <p className="net-line">
   <strong>USD Raised:</strong> ${netUsd} / $8,640,000.00
@@ -1761,6 +1777,13 @@ const [switcherAddr, setSwitcherAddr] = useState(null);
         setConnectMsg("No account selected.");
         return false;
       }
+     // Ensure wallet is on our expected chain immediately after connect
+     try {
+       await ensureCorrectNetwork();
+     } catch (e) {
+       setConnectMsg(`Please switch to ${CHAIN.name} in your wallet.`);
+       return false;
+     }
       setAccount(selected);
       const p = new BrowserProvider(window.ethereum);
       setProvider(p);
@@ -1875,7 +1898,8 @@ const recomputeIsAdmin = (acct, ownerA, switcherA) => {
 
   return (
     <Router>
-      <NavBar isAdmin={isAdmin} />
+      <NavBar isAdmin={isAdmin} isConnected={!!account} />
+
       <Routes>
         <Route path="/"           element={<LandingHome presale={presale} />} />
          <Route
