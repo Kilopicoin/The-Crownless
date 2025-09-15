@@ -801,10 +801,10 @@ if (!Number.isInteger(amtNum) || amtNum < 100 || amtNum > 100000) {
 const prevId  = part > 0 ? (part)     : null;           // previous round display id
 const nextId  = part < PARTS_COUNT - 1 ? (part + 2) : null; // next round display id
 
-const refUrl = React.useMemo(
-  () => (myAddr ? `${window.location.origin}/token/?ref=${myAddr}` : ""),
-  [myAddr]
-);
+ const refUrl = React.useMemo(
+   () => (myAddr ? `${window.location.origin}/token?ref=${myAddr}` : ""),
+   [myAddr]
+ );
 
   return (
     <section className="presale-card">
